@@ -78,7 +78,7 @@
                     <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div class="text-red-900">So</div>
                 </div>
                 <div id="calendar-grid" class="day-grid"></div>
-                <p class="text-[7px] text-zinc-500 mt-2 text-center uppercase font-bold italic">Rote und blaue Tage sind bereits belegt.</p>
+                <p class="text-[7px] text-zinc-500 mt-2 text-center uppercase font-bold italic">Bunte Tage sind bereits belegt oder angefragt.</p>
             </section>
 
             <div id="admin-panel" class="hidden space-y-6 mb-12">
@@ -102,7 +102,6 @@
                 <div class="bg-zinc-800/50 p-6 rounded-[2.5rem] border border-zinc-700">
                     <h3 class="text-[10px] font-black text-zinc-300 uppercase mb-4 text-center tracking-widest">🏛️ Admin Archiv (Alle Tage)</h3>
                     <div id="admin-calendar-grid" class="day-grid"></div>
-                    <p class="text-[7px] text-zinc-500 mt-3 text-center uppercase font-bold">In diesem Kalender ist die Vergangenheit sichtbar.</p>
                 </div>
             </div>
         </div>
@@ -142,7 +141,7 @@
             currentUser = session?.user ?? null;
             
             if (currentUser) {
-                let { data } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+                let { data, error } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
                 userProfile = data;
                 
                 if (userProfile && !userProfile.is_approved && currentUser.email !== ADMIN_EMAIL) {
@@ -165,9 +164,10 @@
         }
 
         function updateUI() {
-            document.getElementById('user-welcome').innerText = userProfile?.display_name || 'Springer';
+            document.getElementById('user-welcome').innerText = userProfile?.display_name || 'Lädt Profil...';
             document.getElementById('user-store').innerText = 'Filiale: ' + (userProfile?.store_number || '---');
-            const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+            const email = currentUser?.email || "";
+            const isAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
             document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
             document.getElementById('admin-archive-section').classList.toggle('hidden', !isAdmin);
             fetchAndRender();
@@ -187,7 +187,7 @@
         async function fetchAndRender() {
             const { data: b } = await supabaseClient.from('bookings').select('*');
             renderCalendar('calendar-grid', b || [], false); 
-            if (currentUser.email === ADMIN_EMAIL) {
+            if (currentUser && currentUser.email === ADMIN_EMAIL) {
                 renderCalendar('admin-calendar-grid', b || [], true); 
                 renderUserApproval();
             }
@@ -221,20 +221,19 @@
                 }
 
                 if (b) {
-                    if (b.status === 'confirmed') { 
-                        cls = "day-busy"; label = "Fil. " + b.store_number; 
-                        if (!isAdminView) disabled = true; // Rot sperren für User
-                    }
+                    if (b.status === 'confirmed') { cls = "day-busy"; label = "Fil. " + b.store_number; }
                     else if (b.status === 'pending') { cls = "day-pending"; label = "OFFEN"; }
-                    else if (b.status === 'vacation') { 
-                        cls = "day-vacation"; label = "URLAUB"; 
-                        if (!isAdminView) disabled = true; // Blau sperren für User
+                    else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
+                    
+                    // SPERRE FÜR ALLE BUNTEN TAGE (ROT, BLAU, GELB) FÜR USER
+                    if (!isAdminView && (b.status === 'confirmed' || b.status === 'vacation' || b.status === 'pending')) {
+                        disabled = true;
                     }
                 }
 
                 const isSelected = selectedDates.includes(dateStr) ? 'day-selected' : '';
                 grid.innerHTML += `<div onclick="${disabled ? '' : `toggleDateSelection('${dateStr}')`}" 
-                    class="calendar-day ${cls} ${isSelected}" data-id="${b?.id || ''}">
+                    class="calendar-day ${cls} ${isSelected}">
                     <span>${d}</span>${label ? `<span class="store-label">${label}</span>` : ''}</div>`;
             }
         }
@@ -246,4 +245,101 @@
             list.innerHTML = '';
             users.forEach(u => {
                 list.innerHTML += `<div class="bg-white text-black p-3 rounded-xl flex justify-between items-center mb-2">
+                    <div class="text-left font-black text-[8px]">${u.display_name}<br><span class="font-normal">Filiale ${u.store_number}</span></div>
+                    <button onclick="approveUser('${u.id}', '${u.email}')" class="bg-blue-600 text-white px-3 py-2 rounded-lg font-black uppercase text-[7px]">OK</button>
+                </div>`;
+            });
+        }
 
+        async function approveUser(uid, email) {
+            await supabaseClient.from('profiles').update({ is_approved: true }).eq('id', uid);
+            emailjs.init(EJS_PUBLIC_KEY);
+            emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email: email, status_text: 'FREIGESCHALTET', date: 'Dein Springerplan-Account ist jetzt aktiv!' });
+            alert("Nutzer freigeschaltet!"); fetchAndRender();
+        }
+
+        function toggleDateSelection(d) {
+            if(selectedDates.includes(d)) selectedDates = selectedDates.filter(x => x !== d);
+            else selectedDates.push(d);
+            updateActionBar(); fetchAndRender(); 
+        }
+
+        function updateActionBar() { 
+            const b = document.getElementById('action-bar'), c = selectedDates.length; 
+            b.classList.toggle('visible', c > 0); 
+            document.getElementById('selection-info').innerText = `${c} Tage gewählt`; 
+            const email = currentUser?.email || "";
+            document.getElementById('admin-actions').classList.toggle('hidden', email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()); 
+        }
+
+        async function handleAuthAction() {
+            const e = document.getElementById('email').value, p = document.getElementById('password').value;
+            if (document.getElementById('signup-fields').classList.contains('hidden')) {
+                const { error } = await supabaseClient.auth.signInWithPassword({ email: e, password: p });
+                if (error) alert("Fehler: " + error.message); else location.reload();
+            } else {
+                const n = document.getElementById('display_name').value, s = document.getElementById('store_number').value, c = document.getElementById('reg_code').value;
+                if (c.toUpperCase() !== MASTER_REG_CODE) return alert("Code falsch");
+                const { error } = await supabaseClient.auth.signUp({ email: e, password: p, options: { data: { display_name: n, store_number: s } } });
+                if (error) alert(error.message); else { alert("Registriert! Warte auf Freischaltung durch Flo."); location.reload(); }
+            }
+        }
+
+        function toggleAuthMode() { 
+            const isSignup = document.getElementById('signup-fields').classList.toggle('hidden'); 
+            document.getElementById('toggle-auth-btn').innerText = isSignup ? "Zum Login" : "Konto erstellen";
+        }
+
+        function clearSelection() { selectedDates = []; updateActionBar(); fetchAndRender(); }
+        function changeMonth(d) { currentViewDate.setMonth(currentViewDate.getMonth() + d); clearSelection(); }
+        async function handleLogout() { await supabaseClient.auth.signOut(); location.reload(); }
+
+        function renderLists(data) {
+            const uL = document.getElementById('booking-list'), aL = document.getElementById('admin-list');
+            if(!uL) return;
+            uL.innerHTML = '';
+            const pending = data.filter(x => x.status === 'pending');
+            if (currentUser && currentUser.email === ADMIN_EMAIL) {
+                aL.innerHTML = pending.length ? '' : 'Keine Anfragen';
+                pending.forEach(b => {
+                    aL.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold">
+                        <div>${b.requested_date}<br><span class="text-zinc-500 font-normal">${b.display_name}</span></div>
+                        <div class="flex gap-1">
+                            <button onclick="processRequest('${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button>
+                            <button onclick="processRequest('${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button>
+                        </div></div>`;
+                });
+            }
+            data.filter(x => x.user_id === currentUser?.id).forEach(b => {
+                uL.innerHTML += `<div class="p-4 bg-zinc-800/30 rounded-2xl mb-2 flex justify-between items-center text-[9px] font-bold border border-zinc-800">
+                    <div>${b.requested_date} (Fil. ${b.store_number})</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
+            });
+        }
+
+        async function processRequest(id, status, email, date) {
+            await supabaseClient.from('bookings').update({ status }).eq('id', id);
+            if (email && status === 'confirmed') {
+                emailjs.init(EJS_PUBLIC_KEY);
+                emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email: email, status_text: 'BESTÄTIGT', date: date });
+            }
+            fetchAndRender();
+        }
+
+        async function submitAdminAction(type) {
+            let inserts = [];
+            if (type === 'direkt') {
+                const f = prompt("Filiale:"); if (!f) return;
+                inserts = selectedDates.map(d => ({ requested_date: d, status: 'confirmed', store_number: f, display_name: 'Admin', user_id: currentUser.id, user_email: currentUser.email }));
+            } else if (type === 'urlaub') {
+                inserts = selectedDates.map(d => ({ requested_date: d, status: 'vacation', store_number: 'URLAUB', display_name: 'Admin', user_id: currentUser.id, user_email: currentUser.email }));
+            } else if (type === 'frei') {
+                await supabaseClient.from('bookings').delete().in('requested_date', selectedDates);
+            }
+            if (inserts.length) await supabaseClient.from('bookings').insert(inserts);
+            clearSelection();
+        }
+
+        async function submitSelection() {
+            const r = prompt("Nachricht (optional):");
+            const { error } = await supabaseClient.from('bookings').insert(selectedDates.map(d => ({ 
+                user_id: currentUser.id, requested_date: d, display_
