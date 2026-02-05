@@ -78,6 +78,7 @@
                     <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div class="text-red-900">So</div>
                 </div>
                 <div id="calendar-grid" class="day-grid"></div>
+                <p class="text-[7px] text-zinc-500 mt-2 text-center uppercase font-bold italic">Rote und blaue Tage sind bereits belegt.</p>
             </section>
 
             <div id="admin-panel" class="hidden space-y-6 mb-12">
@@ -172,7 +173,6 @@
             fetchAndRender();
         }
 
-        // --- ARBEITSFREIE FEIERTAGE Ö (8.12. ERLAUBT) ---
         function isAustrianHoliday(date) {
             const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
             const holidays = ['1.1.', '6.1.', '1.5.', '15.8.', '26.10.', '1.11.', '25.12.', '26.12.']; 
@@ -221,9 +221,15 @@
                 }
 
                 if (b) {
-                    if (b.status === 'confirmed') { cls = "day-busy"; label = "Fil. " + b.store_number; }
+                    if (b.status === 'confirmed') { 
+                        cls = "day-busy"; label = "Fil. " + b.store_number; 
+                        if (!isAdminView) disabled = true; // Rot sperren für User
+                    }
                     else if (b.status === 'pending') { cls = "day-pending"; label = "OFFEN"; }
-                    else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
+                    else if (b.status === 'vacation') { 
+                        cls = "day-vacation"; label = "URLAUB"; 
+                        if (!isAdminView) disabled = true; // Blau sperren für User
+                    }
                 }
 
                 const isSelected = selectedDates.includes(dateStr) ? 'day-selected' : '';
@@ -240,109 +246,4 @@
             list.innerHTML = '';
             users.forEach(u => {
                 list.innerHTML += `<div class="bg-white text-black p-3 rounded-xl flex justify-between items-center mb-2">
-                    <div class="text-left font-black text-[8px]">${u.display_name}<br><span class="font-normal">Filiale ${u.store_number}</span></div>
-                    <button onclick="approveUser('${u.id}', '${u.email}')" class="bg-blue-600 text-white px-3 py-2 rounded-lg font-black uppercase text-[7px]">OK</button>
-                </div>`;
-            });
-        }
 
-        async function approveUser(uid, email) {
-            await supabaseClient.from('profiles').update({ is_approved: true }).eq('id', uid);
-            emailjs.init(EJS_PUBLIC_KEY);
-            emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email: email, status_text: 'FREIGESCHALTET', date: 'Dein Springerplan-Account ist jetzt aktiv!' });
-            alert("Nutzer freigeschaltet!"); fetchAndRender();
-        }
-
-        function toggleDateSelection(d) {
-            if(selectedDates.includes(d)) selectedDates = selectedDates.filter(x => x !== d);
-            else selectedDates.push(d);
-            updateActionBar(); fetchAndRender(); 
-        }
-
-        function updateActionBar() { 
-            const b = document.getElementById('action-bar'), c = selectedDates.length; 
-            b.classList.toggle('visible', c > 0); 
-            document.getElementById('selection-info').innerText = `${c} Tage gewählt`; 
-            document.getElementById('admin-actions').classList.toggle('hidden', currentUser.email !== ADMIN_EMAIL); 
-        }
-
-        async function handleAuthAction() {
-            const e = document.getElementById('email').value, p = document.getElementById('password').value;
-            if (document.getElementById('signup-fields').classList.contains('hidden')) {
-                const { error } = await supabaseClient.auth.signInWithPassword({ email: e, password: p });
-                if (error) alert("Fehler: " + error.message); else location.reload();
-            } else {
-                const n = document.getElementById('display_name').value, s = document.getElementById('store_number').value, c = document.getElementById('reg_code').value;
-                if (c.toUpperCase() !== MASTER_REG_CODE) return alert("Code falsch");
-                const { error } = await supabaseClient.auth.signUp({ email: e, password: p, options: { data: { display_name: n, store_number: s } } });
-                if (error) alert(error.message); else { alert("Registriert! Warte auf Freischaltung durch Flo."); location.reload(); }
-            }
-        }
-
-        function toggleAuthMode() { 
-            const isSignup = document.getElementById('signup-fields').classList.toggle('hidden'); 
-            document.getElementById('toggle-auth-btn').innerText = isSignup ? "Zum Login" : "Konto erstellen";
-        }
-
-        function clearSelection() { selectedDates = []; updateActionBar(); fetchAndRender(); }
-        function changeMonth(d) { currentViewDate.setMonth(currentViewDate.getMonth() + d); clearSelection(); }
-        async function handleLogout() { await supabaseClient.auth.signOut(); location.reload(); }
-
-        function renderLists(data) {
-            const uL = document.getElementById('booking-list'), aL = document.getElementById('admin-list');
-            uL.innerHTML = '';
-            const pending = data.filter(x => x.status === 'pending');
-            if (currentUser.email === ADMIN_EMAIL) {
-                aL.innerHTML = pending.length ? '' : 'Keine Anfragen';
-                pending.forEach(b => {
-                    aL.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold">
-                        <div>${b.requested_date}<br><span class="text-zinc-500 font-normal">${b.display_name}</span></div>
-                        <div class="flex gap-1">
-                            <button onclick="processRequest('${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button>
-                            <button onclick="processRequest('${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button>
-                        </div></div>`;
-                });
-            }
-            data.filter(x => x.user_id === currentUser.id).forEach(b => {
-                uL.innerHTML += `<div class="p-4 bg-zinc-800/30 rounded-2xl mb-2 flex justify-between items-center text-[9px] font-bold border border-zinc-800">
-                    <div>${b.requested_date} (Fil. ${b.store_number})</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
-            });
-        }
-
-        async function processRequest(id, status, email, date) {
-            await supabaseClient.from('bookings').update({ status }).eq('id', id);
-            if (email && status === 'confirmed') {
-                emailjs.init(EJS_PUBLIC_KEY);
-                emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email: email, status_text: 'BESTÄTIGT', date: date });
-            }
-            fetchAndRender();
-        }
-
-        async function submitAdminAction(type) {
-            let inserts = [];
-            if (type === 'direkt') {
-                const f = prompt("Filiale:"); if (!f) return;
-                inserts = selectedDates.map(d => ({ requested_date: d, status: 'confirmed', store_number: f, display_name: 'Admin', user_id: currentUser.id, user_email: currentUser.email }));
-            } else if (type === 'urlaub') {
-                inserts = selectedDates.map(d => ({ requested_date: d, status: 'vacation', store_number: 'URLAUB', display_name: 'Admin', user_id: currentUser.id, user_email: currentUser.email }));
-            } else if (type === 'frei') {
-                await supabaseClient.from('bookings').delete().in('requested_date', selectedDates);
-            }
-            if (inserts.length) await supabaseClient.from('bookings').insert(inserts);
-            clearSelection();
-        }
-
-        async function submitSelection() {
-            const r = prompt("Nachricht (optional):");
-            const { error } = await supabaseClient.from('bookings').insert(selectedDates.map(d => ({ 
-                user_id: currentUser.id, requested_date: d, display_name: userProfile.display_name, store_number: userProfile.store_number, user_email: currentUser.email, reason_user: r, status: 'pending' 
-            })));
-            if (!error) { 
-                emailjs.init(EJS_PUBLIC_KEY);
-                emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" });
-                alert("Anfrage gesendet!"); clearSelection();
-            }
-        }
-    </script>
-</body>
-</html>
