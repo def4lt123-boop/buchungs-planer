@@ -8,61 +8,68 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-        .calendar-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; font-size: 0.7rem; font-weight: bold; cursor: pointer; -webkit-tap-highlight-color: transparent; overflow: hidden; position: relative; }
+        .calendar-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; font-size: 0.8rem; font-weight: bold; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: all 0.2s; }
         .day-free { background-color: #22c55e; color: white; } 
         .day-busy { background-color: #ef4444; color: white; border: 2px solid #991b1b; } 
         .day-past { background-color: #3f3f46; color: #71717a; cursor: not-allowed; }
-        .store-label { font-size: 0.5rem; margin-top: 2px; background: rgba(0,0,0,0.3); width: 100%; text-align: center; padding: 1px 0; font-weight: 900; }
+        .store-label { font-size: 0.55rem; margin-top: 2px; background: rgba(0,0,0,0.3); width: 100%; text-align: center; padding: 1px 0; font-weight: 900; border-radius: 0 0 10px 10px; position: absolute; bottom: 0; }
         * { user-select: none; -webkit-user-select: none; }
-        input, textarea { user-select: auto !important; -webkit-user-select: auto !important; }
+        input, textarea, p, span { user-select: auto !important; -webkit-user-select: auto !important; }
     </style>
 </head>
 <body class="bg-black min-h-screen text-white font-sans overflow-x-hidden">
     <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl">
         
-        <div id="loading" class="flex flex-col items-center justify-center py-20 text-yellow-500 font-bold animate-pulse text-sm uppercase tracking-widest">
-            Springerplan lädt...
+        <div id="loading" class="flex flex-col items-center justify-center py-20 text-yellow-500 font-bold animate-pulse text-sm uppercase">
+            Synchronisiere Daten...
         </div>
 
         <div id="auth-section" class="hidden py-10">
-            <h1 class="text-4xl font-black mb-2 text-center text-yellow-500 italic uppercase font-serif">Springerplan</h1>
-            <p id="auth-mode-text" class="text-center text-zinc-500 text-[10px] mb-8 tracking-[0.3em] uppercase font-bold">Zentral-Login</p>
+            <h1 class="text-4xl font-black mb-2 text-center text-yellow-500 italic uppercase">Springerplan</h1>
             <div class="space-y-3">
-                <input id="email" type="email" placeholder="E-Mail" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none focus:ring-2 focus:ring-yellow-500 text-base">
-                <input id="password" type="password" placeholder="Passwort" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none focus:ring-2 focus:ring-yellow-500 text-base">
+                <input id="email" type="email" placeholder="E-Mail" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
+                <input id="password" type="password" placeholder="Passwort" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
                 <div id="signup-fields" class="hidden space-y-3">
                     <input id="display_name" type="text" placeholder="Vorname Nachname" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
                     <input id="store_number" type="text" placeholder="Filialnummer" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
                 </div>
             </div>
-            <button onclick="handleAuthAction()" id="auth-btn-main" class="w-full bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase shadow-lg mt-6 text-lg active:scale-95 transition-transform">Login</button>
-            <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="w-full mt-8 text-zinc-500 text-[10px] uppercase tracking-widest font-bold underline">Konto registrieren</button>
+            <button onclick="handleAuthAction()" id="auth-btn-main" class="w-full bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase shadow-lg mt-6 active:scale-95">Login</button>
+            <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="w-full mt-8 text-zinc-500 text-[10px] uppercase font-bold underline">Konto erstellen</button>
         </div>
 
         <div id="main-section" class="hidden">
-            <header class="flex justify-between items-center mb-8 bg-zinc-800/40 p-3 rounded-2xl border border-zinc-700/30">
+            <header class="flex justify-between items-center mb-6 bg-zinc-800/40 p-4 rounded-3xl border border-zinc-700/30">
                 <div>
-                    <h2 class="text-lg font-black italic text-yellow-500 uppercase leading-none">Springerplan</h2>
-                    <p id="user-display" class="text-[9px] text-zinc-500 mt-1 uppercase font-bold tracking-tighter"></p>
+                    <h2 class="text-md font-black italic text-yellow-500 uppercase leading-none">Springerplan</h2>
+                    <p id="user-display" class="text-[10px] text-zinc-500 mt-1 font-bold"></p>
                 </div>
-                <button onclick="handleLogout()" class="text-[10px] bg-red-600/20 px-4 py-2 rounded-xl text-red-500 font-black uppercase border border-red-500/20">Logout</button>
+                <button onclick="handleLogout()" class="text-[10px] bg-red-600/20 px-4 py-2 rounded-xl text-red-500 font-black uppercase">Logout</button>
             </header>
 
-            <section class="mb-10">
-                <h3 id="month-name" class="text-xl font-black mb-4 text-zinc-100 ml-1 italic uppercase tracking-tight">Monat</h3>
-                <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-zinc-600 mb-3 uppercase font-black">
+            <section class="mb-8">
+                <div class="flex justify-between items-center mb-4 px-2">
+                    <button onclick="changeMonth(-1)" class="bg-zinc-800 p-3 rounded-full hover:bg-zinc-700 active:scale-90 transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <h3 id="month-name" class="text-lg font-black text-zinc-100 italic uppercase">Monat</h3>
+                    <button onclick="changeMonth(1)" class="bg-zinc-800 p-3 rounded-full hover:bg-zinc-700 active:scale-90 transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
+                <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-zinc-600 mb-2 uppercase font-black">
                     <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div>
                 </div>
                 <div id="calendar-grid" class="day-grid"></div>
             </section>
 
-            <div id="admin-panel" class="hidden mb-10 bg-yellow-500/5 p-5 rounded-3xl border border-yellow-500/20 shadow-2xl">
-                <h3 class="text-[10px] font-black text-yellow-500 uppercase mb-4 text-center tracking-[0.3em]">Disposition (Admin)</h3>
+            <div id="admin-panel" class="hidden mb-6 bg-yellow-500/5 p-5 rounded-[2.5rem] border border-yellow-500/20 shadow-2xl">
+                <h3 class="text-[10px] font-black text-yellow-500 uppercase mb-4 text-center tracking-[0.3em]">Offene Anfragen (Disposition)</h3>
                 <div id="admin-list" class="space-y-3"></div>
             </div>
 
             <section class="pb-10">
-                <h3 class="text-[10px] font-black mb-4 text-zinc-600 uppercase tracking-widest ml-1">Verlauf deiner Anfragen</h3>
+                <h3 id="history-title" class="text-[10px] font-black mb-4 text-zinc-600 uppercase tracking-widest ml-2">Verlauf</h3>
                 <div id="booking-list" class="space-y-2"></div>
             </section>
         </div>
@@ -76,6 +83,7 @@
         let supabaseClient;
         let currentUser = null;
         let isSignupMode = false;
+        let currentViewDate = new Date(); // Für Monatsnavigation
 
         window.addEventListener('load', () => {
             const check = setInterval(() => {
@@ -96,7 +104,6 @@
             document.getElementById('signup-fields').classList.toggle('hidden', !isSignupMode);
             document.getElementById('auth-mode-text').innerText = isSignupMode ? "Registrierung" : "Zentral-Login";
             document.getElementById('auth-btn-main').innerText = isSignupMode ? "Konto erstellen" : "Login";
-            document.getElementById('auth-toggle-btn').innerText = isSignupMode ? "Zurück zum Login" : "Neues Konto registrieren";
         }
 
         async function handleAuthAction() {
@@ -105,14 +112,17 @@
             if (isSignupMode) {
                 const name = document.getElementById('display_name').value;
                 const store = document.getElementById('store_number').value;
-                const { error } = await supabaseClient.auth.signUp({ 
-                    email, password, options: { data: { display_name: name, store_number: store } } 
-                });
+                const { error } = await supabaseClient.auth.signUp({ email, password, options: { data: { display_name: name, store_number: store } } });
                 if (error) alert(error.message); else alert("Erfolg!");
             } else {
                 const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
                 if (error) alert("Fehler beim Login!");
             }
+        }
+
+        function changeMonth(dir) {
+            currentViewDate.setMonth(currentViewDate.getMonth() + dir);
+            fetchAndRender();
         }
 
         async function updateUI() {
@@ -123,8 +133,9 @@
             } else {
                 document.getElementById('auth-section').classList.add('hidden');
                 document.getElementById('main-section').classList.remove('hidden');
-                document.getElementById('user-display').innerText = `${currentUser.user_metadata.display_name || 'Admin'} | ${currentUser.user_metadata.store_number || 'Zentrale'}`;
+                document.getElementById('user-display').innerText = `${currentUser.user_metadata.display_name || 'Admin'} | ${currentUser.user_metadata.store_number || 'HQ'}`;
                 document.getElementById('admin-panel').classList.toggle('hidden', currentUser.email !== ADMIN_EMAIL);
+                document.getElementById('history-title').innerText = currentUser.email === ADMIN_EMAIL ? "Gesamtverlauf (Admin)" : "Deine Anfragen";
                 await fetchAndRender();
             }
         }
@@ -138,9 +149,8 @@
         function renderCalendar(allBookings) {
             const grid = document.getElementById('calendar-grid');
             grid.innerHTML = '';
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = now.getMonth();
+            const year = currentViewDate.getFullYear();
+            const month = currentViewDate.getMonth();
             const days = new Date(year, month + 1, 0).getDate();
             const start = (new Date(year, month, 1).getDay() + 6) % 7;
             document.getElementById('month-name').innerText = `${["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"][month]} ${year}`;
@@ -156,7 +166,7 @@
                 if (isPast) cls = 'day-past';
 
                 grid.innerHTML += `
-                    <div onclick="handleClick('${dateStr}', ${!!booking}, ${isPast}, '${booking?.id || ''}')" class="calendar-day ${cls}">
+                    <div onclick="handleClick('${dateStr}', ${!!booking}, ${isPast}, '${booking?.id || ''}')" class="calendar-day ${cls} relative">
                         <span>${d}</span>
                         ${booking ? `<span class="store-label">${booking.store_number}</span>` : ''}
                     </div>`;
@@ -166,13 +176,13 @@
         async function handleClick(date, isBusy, isPast, bookingId) {
             if (isPast) return;
             if (isBusy && currentUser.email === ADMIN_EMAIL) {
-                const note = prompt("Stornierungsgrund angeben:");
+                const note = prompt("Stornierungsgrund:");
                 if (note !== null) {
                     await supabaseClient.from('bookings').update({ status: 'cancelled', reason_admin: note }).eq('id', bookingId);
                     fetchAndRender();
                 }
             } else if (!isBusy) {
-                const grund = prompt(`${date} anfragen. Buchungsgrund (optional):`);
+                const grund = prompt(`${date} anfragen. Grund (optional):`);
                 if (grund !== null) {
                     await supabaseClient.from('bookings').insert([{ 
                         user_id: currentUser.id, requested_date: date,
@@ -198,48 +208,46 @@
             const uList = document.getElementById('booking-list');
             const aList = document.getElementById('admin-list');
             uList.innerHTML = ''; aList.innerHTML = '';
+            
+            // Sortierung: Neueste Anfragen (Datum) immer ganz OBEN
             const sorted = data.sort((a,b) => b.requested_date.localeCompare(a.requested_date));
 
             sorted.forEach(b => {
                 const s = getStatusInfo(b.status);
-                
-                // USER LISTE
-                if (b.user_id === currentUser.id) {
-                    uList.innerHTML += `<div class="p-4 bg-zinc-800 rounded-2xl flex flex-col mb-2 border border-zinc-700">
-                        <div class="flex justify-between items-center mb-1 text-[10px]">
-                            <span class="font-bold text-zinc-300">${b.requested_date}</span>
-                            <span class="uppercase font-black ${s.color}">${s.text}</span>
-                        </div>
-                        ${b.reason_user ? `<p class="text-[9px] text-zinc-400 italic">Dein Grund: ${b.reason_user}</p>` : ''}
-                        ${b.reason_admin ? `<p class="text-[9px] text-red-400 font-bold mt-1">Anmerkung Admin: ${b.reason_admin}</p>` : ''}
-                    </div>`;
-                }
+                const isPending = b.status === 'pending';
 
-                // ADMIN LISTE
-                if (currentUser.email === ADMIN_EMAIL) {
-                    const isPending = b.status === 'pending';
-                    aList.innerHTML += `<div class="bg-white text-black p-4 rounded-2xl flex flex-col shadow-xl mb-2">
-                        <div class="flex justify-between items-center">
+                // HTML für einen Listeneintrag
+                const itemHtml = `
+                    <div class="p-4 ${currentUser.email === ADMIN_EMAIL && !isPending ? 'bg-zinc-800/40' : 'bg-zinc-800'} rounded-2xl border border-zinc-700 shadow-sm mb-2">
+                        <div class="flex justify-between items-center mb-1">
                             <div class="flex flex-col">
-                                <span class="font-black text-xs leading-none">${b.requested_date}</span>
-                                <span class="text-[8px] uppercase font-bold text-zinc-400 mt-1">${b.store_number} | ${b.display_name}</span>
+                                <span class="font-black text-xs text-white tracking-tighter">${b.requested_date}</span>
+                                <span class="text-[8px] uppercase font-bold text-zinc-500">${b.store_number} | ${b.display_name}</span>
                             </div>
-                            <div class="flex gap-1">
-                                ${isPending ? `
-                                    <button onclick="updateStatus('${b.id}', 'confirmed')" class="bg-green-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase">Ja</button>
-                                    <button onclick="adminReject('${b.id}')" class="bg-red-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase">Nein</button>
-                                ` : `<span class="text-[8px] text-zinc-300 font-black uppercase pr-2 italic">Erledigt</span>`}
-                            </div>
+                            <span class="text-[9px] uppercase font-black ${s.color}">${s.text}</span>
                         </div>
-                        ${b.reason_user ? `<p class="text-[9px] text-zinc-600 italic mt-2 border-t pt-1">Grund Kunde: ${b.reason_user}</p>` : ''}
-                        ${b.reason_admin ? `<p class="text-[9px] text-red-600 font-bold mt-1 uppercase">Anmerkung: ${b.reason_admin}</p>` : ''}
+                        ${b.reason_user ? `<p class="text-[9px] text-zinc-400 italic mt-1">Grund: ${b.reason_user}</p>` : ''}
+                        ${b.reason_admin ? `<p class="text-[9px] text-red-400 font-bold mt-1">Admin: ${b.reason_admin}</p>` : ''}
+                        ${currentUser.email === ADMIN_EMAIL && isPending ? `
+                            <div class="flex gap-2 mt-3">
+                                <button onclick="updateStatus('${b.id}', 'confirmed')" class="flex-1 bg-green-600 text-white py-2 rounded-xl text-[10px] font-black uppercase">Bestätigen</button>
+                                <button onclick="adminReject('${b.id}')" class="flex-1 bg-red-600 text-white py-2 rounded-xl text-[10px] font-black uppercase">Ablehnen</button>
+                            </div>
+                        ` : ''}
                     </div>`;
+
+                // Logik für die Anzeige
+                if (currentUser.email === ADMIN_EMAIL) {
+                    if (isPending) aList.innerHTML += itemHtml;
+                    else uList.innerHTML += itemHtml;
+                } else {
+                    if (b.user_id === currentUser.id) uList.innerHTML += itemHtml;
                 }
             });
         }
 
         async function adminReject(id) {
-            const note = prompt("Grund für die Ablehnung:");
+            const note = prompt("Grund für Ablehnung:");
             if(note !== null) {
                 await supabaseClient.from('bookings').update({ status: 'rejected', reason_admin: note }).eq('id', id);
                 fetchAndRender();
