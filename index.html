@@ -23,18 +23,17 @@
 </head>
 <body class="bg-black text-white font-sans overflow-x-hidden">
     <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl">
-        
         <div id="loading" class="flex flex-col items-center py-20 text-yellow-500 font-bold animate-pulse uppercase tracking-widest text-sm">Lade Springerplan...</div>
 
         <div id="auth-section" class="hidden py-10 text-center">
             <h1 class="text-3xl font-black mb-1 text-yellow-500 italic uppercase">Springerplan</h1>
             <p class="text-[10px] text-zinc-500 mb-8 uppercase tracking-[0.2em] font-bold">made by Flo</p>
             <div class="space-y-3 px-4 text-left">
-                <input id="email" type="email" placeholder="E-Mail" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
-                <input id="password" type="password" placeholder="Passwort" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
+                <input id="email" type="email" placeholder="E-Mail" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none text-base">
+                <input id="password" type="password" placeholder="Passwort" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none text-base">
                 <div id="signup-fields" class="hidden space-y-3">
-                    <input id="display_name" type="text" placeholder="Dein Name" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
-                    <input id="store_number" type="text" placeholder="Filialnummer (z.B. 000)" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
+                    <input id="display_name" type="text" placeholder="Dein Name" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none text-base">
+                    <input id="store_number" type="text" placeholder="Filialnummer" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none text-base">
                 </div>
             </div>
             <button onclick="handleAuthAction()" id="auth-btn-main" class="w-11/12 bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase mt-6 active:scale-95 transition-transform">Login</button>
@@ -52,9 +51,9 @@
 
             <section class="mb-8">
                 <div class="flex justify-between items-center mb-4 px-2">
-                    <button onclick="changeMonth(-1)" class="bg-zinc-800 p-2 rounded-full"> <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-width="3"></path></svg> </button>
+                    <button onclick="changeMonth(-1)" class="bg-zinc-800 p-2 rounded-full"><svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-width="3"></path></svg></button>
                     <h3 id="month-name" class="text-lg font-black text-zinc-100 uppercase italic tracking-widest">Monat</h3>
-                    <button onclick="changeMonth(1)" class="bg-zinc-800 p-2 rounded-full"> <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-width="3"></path></svg> </button>
+                    <button onclick="changeMonth(1)" class="bg-zinc-800 p-2 rounded-full"><svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-width="3"></path></svg></button>
                 </div>
                 <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-zinc-600 mb-2 font-black uppercase">
                     <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div>
@@ -81,12 +80,12 @@
         const ADMIN_EMAIL = 'def4lt123@gmail.com';
         
         const EMAILJS_SERVICE_ID = "service_z1cwhnt";
-        const EMAILJS_TEMPLATE_ID = "template_22cjt73";
+        const EMAILJS_USER_TEMPLATE_ID = "template_22cjt73"; 
+        const EMAILJS_ADMIN_TEMPLATE_ID = "template_avultfe"; 
         const EMAILJS_PUBLIC_KEY = "MkRGHMZNkwKnmQDLY";
 
         let supabaseClient, currentUser = null, currentViewDate = new Date(), isSignupMode = false;
 
-        // Init EmailJS
         (function() { emailjs.init(EMAILJS_PUBLIC_KEY); })();
 
         window.addEventListener('load', () => {
@@ -101,31 +100,33 @@
             updateUI();
         }
 
-        // --- EMAIL FUNKTION ---
+        // --- MAIL AN NUTZER (Bestätigung/Ablehnung/Storno) ---
         async function sendEmailNotification(toEmail, status, date) {
             if (!toEmail) return;
-            
-            // Status-Mapping für schöneren Text
             let statusText = status.toUpperCase();
             if (status === 'confirmed') statusText = 'BESTÄTIGT';
-            if (status === 'rejected') statusText = 'ABGELEHNT';
-            if (status === 'storniert') statusText = 'STORNIERT';
             
-            const templateParams = {
-                email: toEmail,         // {{email}}
-                status_text: statusText, // {{status_text}}
-                date: date               // {{date}}
-            };
-
+            const templateParams = { email: toEmail, status_text: statusText, date: date };
             try {
-                await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
-                console.log("Email versendet an: " + toEmail + " (Status: " + statusText + ")");
-            } catch (error) {
-                console.error("EmailJS Fehler:", error);
-            }
+                await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_USER_TEMPLATE_ID, templateParams);
+                console.log("Nutzer-Mail gesendet.");
+            } catch (e) { console.error("Nutzer-Mail Fehler:", e); }
         }
 
-        // --- FEIERTAGS-LOGIK ÖSTERREICH ---
+        // --- MAIL AN DICH (Neue Anfrage) ---
+        async function sendAdminNotification(userName, storeNum, date, reason) {
+            const templateParams = {
+                user_name: userName,
+                store_number: storeNum,
+                date: date,
+                reason: reason || "Kein Grund angegeben"
+            };
+            try {
+                await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_ADMIN_TEMPLATE_ID, templateParams);
+                console.log("Admin-Mail gesendet.");
+            } catch (e) { console.error("Admin-Mail Fehler:", e); }
+        }
+
         function isAustrianHoliday(date, year) {
             const d = date.getDate(), m = date.getMonth() + 1;
             const holidays = ["1.1", "6.1", "1.5", "15.8", "26.10", "1.11", "25.12", "26.12"];
@@ -172,35 +173,32 @@
         async function handleClick(date, status, id) {
             if (currentUser.email === ADMIN_EMAIL) {
                 const action = prompt("Aktion: 'urlaub', 'storno' oder 'frei'");
-                
-                // Buchungsdaten laden um die Email-Adresse zu erhalten
                 let userEmail = null;
                 if (id) {
                     const { data: bData } = await supabaseClient.from('bookings').select('user_email').eq('id', id).single();
                     if (bData) userEmail = bData.user_email;
                 }
-
-                if (action === 'urlaub') {
-                    await supabaseClient.from('bookings').insert([{ requested_date: date, status: 'vacation', store_number: 'URLAUB', user_id: currentUser.id, display_name: 'ADMIN', user_email: ADMIN_EMAIL }]);
-                } 
+                if (action === 'urlaub') await supabaseClient.from('bookings').insert([{ requested_date: date, status: 'vacation', store_number: 'URLAUB', user_id: currentUser.id, display_name: 'ADMIN', user_email: ADMIN_EMAIL }]);
                 else if (action === 'storno' && id) {
                     await supabaseClient.from('bookings').update({ status: 'storniert' }).eq('id', id);
                     if (userEmail) await sendEmailNotification(userEmail, 'storniert', date);
-                } 
-                else if (action === 'frei' && id) {
-                    if (userEmail) await sendEmailNotification(userEmail, 'freigegeben/gelöscht', date);
+                } else if (action === 'frei' && id) {
+                    if (userEmail) await sendEmailNotification(userEmail, 'gelöscht', date);
                     await supabaseClient.from('bookings').delete().eq('id', id);
                 }
                 fetchAndRender();
             } else if (status === 'free') {
                 const g = prompt("Grund (optional):");
-                await supabaseClient.from('bookings').insert([{ 
+                const { error } = await supabaseClient.from('bookings').insert([{ 
                     user_id: currentUser.id, requested_date: date, 
                     display_name: currentUser.user_metadata.display_name, 
                     store_number: currentUser.user_metadata.store_number, 
-                    user_email: currentUser.email,
-                    reason_user: g, status: 'pending' 
+                    user_email: currentUser.email, reason_user: g, status: 'pending' 
                 }]);
+                if (!error) {
+                    await sendAdminNotification(currentUser.user_metadata.display_name, currentUser.user_metadata.store_number, date, g);
+                    alert("Anfrage gesendet! Flo wurde benachrichtigt.");
+                }
                 fetchAndRender();
             }
         }
@@ -216,22 +214,16 @@
             uL.innerHTML = ''; aL.innerHTML = '';
             data.sort((a,b) => b.requested_date.localeCompare(a.requested_date)).forEach(b => {
                 const html = `<div class="p-4 bg-zinc-800/50 rounded-2xl border border-zinc-800 mb-2 flex justify-between items-center">
-                    <div>
-                        <div class="font-bold text-xs text-zinc-100">${b.requested_date}</div>
-                        <div class="text-[8px] text-zinc-500 uppercase font-black mt-1">${b.store_number} | ${b.display_name}</div>
-                    </div>
+                    <div><div class="font-bold text-xs text-zinc-100">${b.requested_date}</div><div class="text-[8px] text-zinc-500 uppercase font-black mt-1">${b.store_number} | ${b.display_name}</div></div>
                     <div class="text-[9px] font-black uppercase ${b.status === 'confirmed' ? 'text-green-500' : (b.status === 'rejected' ? 'text-red-500' : 'text-yellow-500')}">${b.status}</div>
                 </div>`;
                 if (b.user_id === currentUser.id) uL.innerHTML += html;
                 if (currentUser.email === ADMIN_EMAIL && b.status === 'pending') {
                     aL.innerHTML += `<div class="bg-white text-black p-4 rounded-2xl flex justify-between items-center shadow-lg mb-2">
-                        <div>
-                            <span class="font-bold text-xs">${b.requested_date}</span><br>
-                            <span class="text-[9px] uppercase font-black text-zinc-400">${b.store_number} | ${b.display_name}</span>
-                        </div>
+                        <div><span class="font-bold text-xs">${b.requested_date}</span><br><span class="text-[9px] uppercase font-black text-zinc-400">${b.store_number} | ${b.display_name}</span></div>
                         <div class="flex gap-2">
-                            <button onclick="processRequest('${b.id}', 'confirmed', '${b.user_email}', '${b.requested_date}')" class="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-[9px] active:scale-90 transition-transform">JA</button>
-                            <button onclick="processRequest('${b.id}', 'rejected', '${b.user_email}', '${b.requested_date}')" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-[9px] active:scale-90 transition-transform">NEIN</button>
+                            <button onclick="processRequest('${b.id}', 'confirmed', '${b.user_email}', '${b.requested_date}')" class="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-[9px]">JA</button>
+                            <button onclick="processRequest('${b.id}', 'rejected', '${b.user_email}', '${b.requested_date}')" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-[9px]">NEIN</button>
                         </div>
                     </div>`;
                 }
