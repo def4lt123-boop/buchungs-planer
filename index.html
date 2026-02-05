@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Springerplan Admin</title>
+    <title>Springerplan Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -14,6 +14,7 @@
         .day-busy { background-color: #ef4444; color: white; } 
         .day-pending { background-color: #eab308; color: black; }
         .day-vacation { background-color: #3b82f6; color: white; }
+        .day-disabled { background-color: #3f3f46 !important; color: #71717a !important; cursor: not-allowed !important; opacity: 0.5; pointer-events: none; }
         .day-selected { border: 3px solid #ffffff !important; transform: scale(0.92); box-shadow: 0 0 15px rgba(255,255,255,0.4); z-index: 10; }
         .store-label { font-size: 0.45rem; background: rgba(0,0,0,0.4); width: 100%; text-align: center; padding: 1px 0; font-weight: 900; position: absolute; bottom: 0; border-radius: 0 0 10px 10px; overflow: hidden; white-space: nowrap; }
         #action-bar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translate(-50%, 150%); position: fixed; bottom: 1.5rem; left: 50%; z-index: 50; }
@@ -26,9 +27,17 @@
     <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl pb-32">
         
         <div id="loading" class="flex flex-col items-center py-20 text-yellow-500 font-bold animate-pulse uppercase tracking-widest text-xs">
-            Lade System...
+            System wird geprüft...
         </div>
-        <div id="error-msg" class="hidden mx-4 p-4 bg-red-900/50 border border-red-500 rounded-xl text-center text-red-200 text-xs font-mono mb-4"></div>
+
+        <div id="waiting-section" class="hidden py-20 text-center">
+            <div class="w-20 h-20 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span class="text-4xl">⏳</span>
+            </div>
+            <h2 class="text-xl font-black uppercase italic mb-2">Fast geschafft!</h2>
+            <p class="text-zinc-400 text-xs px-10 leading-relaxed">Dein Account wurde erstellt, muss aber noch von Flo freigeschaltet werden. Du erhältst eine E-Mail, sobald es losgeht.</p>
+            <button onclick="handleLogout()" class="mt-10 text-[10px] text-zinc-600 underline uppercase font-bold">Mit anderem Konto anmelden</button>
+        </div>
 
         <div id="auth-section" class="hidden py-10 text-center">
             <h1 class="text-3xl font-black mb-1 text-yellow-500 italic uppercase">Springerplan</h1>
@@ -36,13 +45,13 @@
                 <input id="email" type="email" placeholder="E-Mail" class="w-full p-4 bg-zinc-800 rounded-2xl text-white outline-none">
                 <input id="password" type="password" placeholder="Passwort" class="w-full p-4 bg-zinc-800 rounded-2xl text-white outline-none">
                 <div id="signup-fields" class="hidden space-y-3 pt-2">
-                    <input id="display_name" type="text" placeholder="Name" class="w-full p-4 bg-zinc-800 rounded-2xl text-white outline-none">
-                    <input id="store_number" type="text" placeholder="Filialnummer" class="w-full p-4 bg-zinc-800 rounded-2xl text-white outline-none">
-                    <input id="reg_code" type="text" placeholder="Code" class="w-full p-4 bg-zinc-800 border-2 border-yellow-500/20 rounded-2xl text-white outline-none">
+                    <input id="display_name" type="text" placeholder="Vor- & Nachname" class="w-full p-4 bg-zinc-800 rounded-2xl text-white outline-none">
+                    <input id="store_number" type="text" placeholder="Stamm-Filiale" class="w-full p-4 bg-zinc-800 rounded-2xl text-white outline-none">
+                    <input id="reg_code" type="text" placeholder="Einladungscode" class="w-full p-4 bg-zinc-800 border-2 border-yellow-500/20 rounded-2xl text-white outline-none">
                 </div>
             </div>
             <button onclick="handleAuthAction()" class="w-11/12 bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase mt-8">Login</button>
-            <button onclick="toggleAuthMode()" class="w-full mt-10 text-zinc-600 text-[10px] uppercase font-bold underline italic tracking-widest">Konto erstellen</button>
+            <button onclick="toggleAuthMode()" id="toggle-auth-btn" class="w-full mt-10 text-zinc-600 text-[10px] uppercase font-bold underline italic tracking-widest">Konto erstellen</button>
         </div>
 
         <div id="main-section" class="hidden">
@@ -57,24 +66,29 @@
                 <button onclick="handleLogout()" class="text-[9px] bg-red-600/10 px-4 py-2 rounded-xl text-red-500 font-black uppercase">Logout</button>
             </header>
 
-            <section class="mb-12">
-                <div class="flex justify-between items-center mb-6 px-2">
-                    <button onclick="changeMonth(-1)" class="bg-zinc-800 p-2 rounded-full w-10 h-10">◀</button>
-                    <h3 id="month-name" class="text-sm font-black uppercase italic tracking-widest text-zinc-100">Monat</h3>
-                    <button onclick="changeMonth(1)" class="bg-zinc-800 p-2 rounded-full w-10 h-10">▶</button>
+            <div id="admin-panel" class="hidden space-y-6 mb-10">
+                <div class="bg-blue-600/10 p-6 rounded-[2.5rem] border border-blue-500/30">
+                    <h3 class="text-[10px] font-black text-blue-400 uppercase mb-4 text-center tracking-widest">👤 Nutzer Freischalten</h3>
+                    <div id="user-approval-list" class="space-y-3 text-center text-[9px] text-zinc-500 italic">Lade Nutzer...</div>
                 </div>
-                <div class="grid grid-cols-7 gap-1 text-center text-[9px] text-zinc-600 mb-3 font-black uppercase tracking-widest">
-                    <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div>
-                </div>
-                <div id="calendar-grid" class="day-grid"></div>
-            </section>
-
-            <div id="admin-panel" class="hidden mb-10 bg-yellow-500/10 p-6 rounded-[2.5rem] border border-yellow-500/30">
-                <h3 class="text-[10px] font-black text-yellow-500 uppercase mb-4 text-center tracking-widest">⚠️ Admin Bereich</h3>
-                <div id="admin-list" class="space-y-3">
-                    <div class="text-center text-[9px] text-zinc-500 italic">Keine offenen Anfragen</div>
+                <div class="bg-yellow-500/10 p-6 rounded-[2.5rem] border border-yellow-500/30">
+                    <h3 class="text-[10px] font-black text-yellow-500 uppercase mb-4 text-center tracking-widest">📅 Offene Anfragen</h3>
+                    <div id="admin-list" class="space-y-3 text-center text-[9px] text-zinc-500 italic">Keine Anfragen</div>
                 </div>
             </div>
+
+            <section class="mb-12">
+                <div class="flex justify-between items-center mb-6 px-2">
+                    <button onclick="changeMonth(-1)" class="bg-zinc-800 p-2 rounded-full w-10 h-10 text-xs">◀</button>
+                    <h3 id="month-name" class="text-sm font-black uppercase italic tracking-widest text-zinc-100">Monat</h3>
+                    <button onclick="changeMonth(1)" class="bg-zinc-800 p-2 rounded-full w-10 h-10 text-xs">▶</button>
+                </div>
+                <div class="grid grid-cols-7 gap-1 text-center text-[9px] text-zinc-600 mb-3 font-black uppercase tracking-widest">
+                    <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div class="text-red-900">So</div>
+                </div>
+                <div id="calendar-grid" class="day-grid"></div>
+                <p class="text-[8px] text-zinc-600 mt-4 text-center uppercase font-bold italic">Vergangene Tage, Sonntage & Feiertage (Ö) sind gesperrt.</p>
+            </section>
 
             <section class="mb-12">
                 <h3 class="text-[9px] font-black mb-4 text-zinc-600 uppercase tracking-widest ml-3 italic">Deine Buchungen</h3>
@@ -101,10 +115,7 @@
     <script>
         const SUPABASE_URL = 'https://aggpjaxpupqbsefsusok.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnZ3BqYXhwdXBxYnNlZnN1c29rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNzgxOTcsImV4cCI6MjA4NTg1NDE5N30.66Q-q1EIdn4_EWf_TCOanxwQ-_qB6-FaAYdHCYbLkHk';
-        
-        // BITTE HIER DEINE EXACTE E-MAIL PRÜFEN (Kleinbuchstaben)
         const ADMIN_EMAIL = 'def4lt123@gmail.com'; 
-        
         const MASTER_REG_CODE = "FLO2026";
         const EJS_SERVICE = "service_z1cwhnt", EJS_USER_TEMPLATE = "template_22cjt73", EJS_ADMIN_TEMPLATE = "template_avultfe", EJS_PUBLIC_KEY = "MkRGHMZNkwKnmQDLY";
 
@@ -115,51 +126,65 @@
         });
 
         async function initApp() {
-            try {
-                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                const { data: { session }, error } = await supabaseClient.auth.getSession();
-                if(error) throw error;
-
-                currentUser = session?.user ?? null;
-                if (currentUser) {
-                    // Profil laden
-                    let { data } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
-                    userProfile = data;
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            currentUser = session?.user ?? null;
+            
+            if (currentUser) {
+                let { data } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+                userProfile = data;
+                
+                if (userProfile && !userProfile.is_approved && currentUser.email !== ADMIN_EMAIL) {
+                    showSection('waiting-section');
+                } else {
+                    showSection('main-section');
+                    updateUI();
                 }
-                updateUI();
-            } catch (err) {
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('error-msg').innerText = "Fehler: " + err.message;
-                document.getElementById('error-msg').classList.remove('hidden');
+            } else {
+                showSection('auth-section');
             }
+        }
+
+        function showSection(id) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('main-section').classList.add('hidden');
+            document.getElementById('waiting-section').classList.add('hidden');
+            document.getElementById(id).classList.remove('hidden');
         }
 
         function updateUI() {
-            document.getElementById('loading').classList.add('hidden');
-            if (!currentUser) {
-                document.getElementById('auth-section').classList.remove('hidden');
-                document.getElementById('main-section').classList.add('hidden');
-            } else {
-                document.getElementById('auth-section').classList.add('hidden');
-                document.getElementById('main-section').classList.remove('hidden');
-                document.getElementById('user-welcome').innerText = userProfile?.display_name || 'Benutzer';
-                document.getElementById('user-store').innerText = 'Filiale: ' + (userProfile?.store_number || '---');
-                
-                // ADMIN CHECK (sicherer Vergleich)
-                const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-                document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
-                
-                fetchAndRender();
-            }
+            document.getElementById('user-welcome').innerText = userProfile?.display_name || 'Springer';
+            document.getElementById('user-store').innerText = 'Filiale: ' + (userProfile?.store_number || '---');
+            const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+            document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
+            fetchAndRender();
+        }
+
+        // --- FEIERTAGS-LOGIK ÖSTERREICH ---
+        function isAustrianHoliday(date) {
+            const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
+            const holidays = [
+                '1.1.', '6.1.', '1.5.', '15.8.', '26.10.', '1.11.', '8.12.', '25.12.', '26.12.'
+            ];
+            if (holidays.includes(`${d}.${m}.`)) return true;
+
+            // Bewegliche Feiertage (Ostern)
+            const a = y % 19, b = Math.floor(y / 100), c = y % 100, d1 = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d1 - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m1 = Math.floor((a + 11 * h + 22 * l) / 451), month = Math.floor((h + l - 7 * m1 + 114) / 31), day = ((h + l - 7 * m1 + 114) % 31) + 1;
+            const easter = new Date(y, month - 1, day);
+            
+            const addDays = (base, n) => { let res = new Date(base); res.setDate(res.getDate() + n); return res; };
+            const ostermontag = addDays(easter, 1), christiHimmelfahrt = addDays(easter, 39), pfingstmontag = addDays(easter, 50), fronleichnam = addDays(easter, 60);
+
+            const check = (target) => d === target.getDate() && (m - 1) === target.getMonth();
+            return check(ostermontag) || check(christiHimmelfahrt) || check(pfingstmontag) || check(fronleichnam);
         }
 
         async function fetchAndRender() {
-            const { data: b, error } = await supabaseClient.from('bookings').select('*');
-            if(error) console.error(error);
-            
-            const bookings = b || [];
-            renderCalendar(bookings);
-            renderLists(bookings);
+            const { data: b } = await supabaseClient.from('bookings').select('*');
+            renderCalendar(b || []);
+            renderLists(b || []);
+            if (currentUser.email === ADMIN_EMAIL) renderUserApproval();
         }
 
         function renderCalendar(all) {
@@ -167,116 +192,120 @@
             const year = currentViewDate.getFullYear(), month = currentViewDate.getMonth();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const startDay = (new Date(year, month, 1).getDay() + 6) % 7;
-            document.getElementById('month-name').innerText = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(currentViewDate);
+            const today = new Date(); today.setHours(0,0,0,0);
             
+            document.getElementById('month-name').innerText = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(currentViewDate);
             for (let x = 0; x < startDay; x++) grid.innerHTML += `<div></div>`;
 
             for (let d = 1; d <= daysInMonth; d++) {
+                const dateObj = new Date(year, month, d);
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                
                 const b = all.find(x => x.requested_date === dateStr && x.status !== 'rejected');
                 
-                let cls = "day-free", label = "";
-                if (b) {
+                let cls = "day-free", label = "", disabled = false;
+                
+                // SPERR-LOGIK
+                if (dateObj < today || dateObj.getDay() === 0 || isAustrianHoliday(dateObj)) {
+                    disabled = true; cls = "day-disabled";
+                } else if (b) {
                     if (b.status === 'confirmed') { cls = "day-busy"; label = "Fil. " + b.store_number; }
                     else if (b.status === 'pending') { cls = "day-pending"; label = "OFFEN"; }
                     else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
                 }
 
                 const isSelected = selectedDates.includes(dateStr) ? 'day-selected' : '';
-
-                grid.innerHTML += `<div onclick="toggleDateSelection('${dateStr}')" 
+                grid.innerHTML += `<div onclick="${disabled ? '' : `toggleDateSelection('${dateStr}')`}" 
                     class="calendar-day ${cls} ${isSelected}" data-id="${b?.id || ''}">
                     <span>${d}</span>${label ? `<span class="store-label">${label}</span>` : ''}</div>`;
             }
         }
 
+        // --- ADMIN: NUTZER FREISCHALTEN ---
+        async function renderUserApproval() {
+            const list = document.getElementById('user-approval-list');
+            const { data: users } = await supabaseClient.from('profiles').select('*').eq('is_approved', false);
+            
+            if (!users || users.length === 0) {
+                list.innerHTML = 'Keine neuen Registrierungen';
+                return;
+            }
+            list.innerHTML = '';
+            users.forEach(u => {
+                list.innerHTML += `<div class="bg-white text-black p-3 rounded-xl flex justify-between items-center mb-2">
+                    <div class="text-left"><p class="font-black">${u.display_name}</p><p class="text-[7px]">Filiale ${u.store_number}</p></div>
+                    <button onclick="approveUser('${u.id}', '${u.email}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-black uppercase text-[8px]">Freischalten</button>
+                </div>`;
+            });
+        }
+
+        async function approveUser(uid, email) {
+            const { error } = await supabaseClient.from('profiles').update({ is_approved: true }).eq('id', uid);
+            if (!error) {
+                emailjs.init(EJS_PUBLIC_KEY);
+                emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { 
+                    email: email, 
+                    status_text: 'FREIGESCHALTET', 
+                    date: 'Ab sofort kannst du dich einloggen und Termine buchen!' 
+                });
+                alert("Nutzer freigeschaltet & informiert!");
+                renderUserApproval();
+            }
+        }
+
+        // --- BASIS FUNKTIONEN ---
         function toggleDateSelection(d) {
             if(selectedDates.includes(d)) selectedDates = selectedDates.filter(x => x !== d);
             else selectedDates.push(d);
-            updateActionBar();
-            // Nur visuelles Update
-            const allDays = document.querySelectorAll('.calendar-day');
-            fetchAndRender(); 
+            updateActionBar(); fetchAndRender(); 
         }
 
-        // --- ADMIN ACTIONS ---
-        async function submitAdminAction(type) {
-            if (selectedDates.length === 0) return alert("Keine Tage ausgewählt!");
-            
-            try {
-                let inserts = [];
-                if (type === 'direkt') {
-                    const f = prompt("Filiale:");
-                    if (!f) return;
-                    inserts = selectedDates.map(d => ({ requested_date: d, status: 'confirmed', store_number: f, display_name: 'Admin Einteilung', user_id: currentUser.id }));
-                } else if (type === 'urlaub') {
-                    inserts = selectedDates.map(d => ({ requested_date: d, status: 'vacation', store_number: 'URLAUB', display_name: 'Admin', user_id: currentUser.id }));
-                } else if (type === 'frei') {
-                     // Löschen Logik
-                     const ids = [];
-                     selectedDates.forEach(d => {
-                        // Finde ID im Grid (Hack)
-                        const bookings = document.querySelectorAll('.calendar-day'); // Vereinfacht, besser wäre neu fetchen
-                     });
-                     // Wir löschen basierend auf Datum und User Admin für Einfachheit
-                     await supabaseClient.from('bookings').delete().in('requested_date', selectedDates);
-                }
+        function updateActionBar() { 
+            const b = document.getElementById('action-bar'), c = selectedDates.length; 
+            b.classList.toggle('visible', c > 0); 
+            document.getElementById('selection-info').innerText = `${c} Tage gewählt`; 
+            document.getElementById('admin-actions').classList.toggle('hidden', currentUser.email !== ADMIN_EMAIL); 
+        }
 
-                if (inserts.length > 0) {
-                    const { error } = await supabaseClient.from('bookings').insert(inserts);
-                    if(error) throw error;
-                }
-                
-                alert("Gespeichert!");
-                clearSelection();
-            } catch(e) {
-                alert("Fehler: " + e.message);
+        async function handleAuthAction() {
+            const e = document.getElementById('email').value, p = document.getElementById('password').value;
+            if (document.getElementById('signup-fields').classList.contains('hidden')) {
+                const { error } = await supabaseClient.auth.signInWithPassword({ email: e, password: p });
+                if (error) alert(error.message); else location.reload();
+            } else {
+                const n = document.getElementById('display_name').value, s = document.getElementById('store_number').value, c = document.getElementById('reg_code').value;
+                if (c.toUpperCase() !== MASTER_REG_CODE) return alert("Code falsch");
+                const { error } = await supabaseClient.auth.signUp({ email: e, password: p, options: { data: { display_name: n, store_number: s } } });
+                if (error) alert(error.message); else { alert("Registriert! Warte auf Freischaltung durch Flo."); location.reload(); }
             }
         }
 
-        async function submitSelection() {
-            const r = prompt("Nachricht:");
-            const { error } = await supabaseClient.from('bookings').insert(selectedDates.map(d => ({ 
-                user_id: currentUser.id, requested_date: d, display_name: userProfile.display_name, store_number: userProfile.store_number, user_email: currentUser.email, reason_user: r, status: 'pending' 
-            })));
-            if (!error) { 
-                emailjs.init(EJS_PUBLIC_KEY);
-                emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" });
-                alert("Gesendet!"); clearSelection();
-            } else { alert(error.message); }
+        function toggleAuthMode() { 
+            const isSignup = document.getElementById('signup-fields').classList.toggle('hidden'); 
+            document.getElementById('toggle-auth-btn').innerText = isSignup ? "Zum Login" : "Konto erstellen";
         }
+
+        function clearSelection() { selectedDates = []; updateActionBar(); fetchAndRender(); }
+        function changeMonth(d) { currentViewDate.setMonth(currentViewDate.getMonth() + d); clearSelection(); }
+        async function handleLogout() { await supabaseClient.auth.signOut(); location.reload(); }
 
         function renderLists(data) {
             const uL = document.getElementById('booking-list'), aL = document.getElementById('admin-list');
-            uL.innerHTML = ''; 
-            
-            // Filter für Admin-Liste
+            uL.innerHTML = '';
             const pending = data.filter(x => x.status === 'pending');
-            
-            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                aL.innerHTML = '';
-                if (pending.length === 0) {
-                    aL.innerHTML = '<div class="text-center text-[9px] text-zinc-500 italic">Keine offenen Anfragen</div>';
-                } else {
-                    pending.forEach(b => {
-                        aL.innerHTML += `<div class="bg-white text-black p-4 rounded-2xl mb-2 flex justify-between items-center text-[9px] font-bold">
-                            <div>${b.requested_date} - Fil. ${b.store_number}<br><span class="text-zinc-500 font-normal">${b.display_name} (${b.reason_user || '-'})</span></div>
-                            <div class="flex gap-1">
-                                <button onclick="processRequest('${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button>
-                                <button onclick="processRequest('${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button>
-                            </div>
-                        </div>`;
-                    });
-                }
+            if (currentUser.email === ADMIN_EMAIL) {
+                aL.innerHTML = pending.length ? '' : 'Keine Anfragen';
+                pending.forEach(b => {
+                    aL.innerHTML += `<div class="bg-white text-black p-4 rounded-2xl flex justify-between items-center text-[9px] font-bold">
+                        <div>${b.requested_date} - ${b.display_name}</div>
+                        <div class="flex gap-1">
+                            <button onclick="processRequest('${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button>
+                            <button onclick="processRequest('${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button>
+                        </div></div>`;
+                });
             }
-
-            // Eigene Buchungen
-            data.sort((a,b) => b.requested_date.localeCompare(a.requested_date)).forEach(b => {
-                if (b.user_id === currentUser.id) {
-                    uL.innerHTML += `<div class="p-4 bg-zinc-800/30 rounded-2xl mb-2 flex justify-between items-center text-[9px] font-bold border border-zinc-800">
-                        <div>${b.requested_date} (Fil. ${b.store_number})</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
-                }
+            data.filter(x => x.user_id === currentUser.id).forEach(b => {
+                uL.innerHTML += `<div class="p-4 bg-zinc-800/30 rounded-2xl mb-2 flex justify-between items-center text-[9px] font-bold border border-zinc-800">
+                    <div>${b.requested_date}</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
             });
         }
 
@@ -289,31 +318,31 @@
             fetchAndRender();
         }
 
-        function updateActionBar() { 
-            const b = document.getElementById('action-bar'), c = selectedDates.length; 
-            b.classList.toggle('visible', c > 0); 
-            document.getElementById('selection-info').innerText = `${c} Tage gewählt`; 
-            const isAdmin = currentUser && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-            document.getElementById('admin-actions').classList.toggle('hidden', !isAdmin); 
+        async function submitAdminAction(type) {
+            let inserts = [];
+            if (type === 'direkt') {
+                const f = prompt("Filiale:"); if (!f) return;
+                inserts = selectedDates.map(d => ({ requested_date: d, status: 'confirmed', store_number: f, display_name: 'Admin', user_id: currentUser.id }));
+            } else if (type === 'urlaub') {
+                inserts = selectedDates.map(d => ({ requested_date: d, status: 'vacation', store_number: 'URLAUB', display_name: 'Admin', user_id: currentUser.id }));
+            } else if (type === 'frei') {
+                await supabaseClient.from('bookings').delete().in('requested_date', selectedDates);
+            }
+            if (inserts.length) await supabaseClient.from('bookings').insert(inserts);
+            clearSelection();
         }
 
-        function clearSelection() { selectedDates = []; updateActionBar(); fetchAndRender(); }
-        function changeMonth(d) { currentViewDate.setMonth(currentViewDate.getMonth() + d); clearSelection(); }
-        async function handleLogout() { await supabaseClient.auth.signOut(); location.reload(); }
-
-        async function handleAuthAction() {
-            const e = document.getElementById('email').value, p = document.getElementById('password').value;
-            if (document.getElementById('signup-fields').classList.contains('hidden')) {
-                const { error } = await supabaseClient.auth.signInWithPassword({ email: e, password: p });
-                if (error) alert(error.message); else location.reload();
-            } else {
-                const n = document.getElementById('display_name').value, s = document.getElementById('store_number').value, c = document.getElementById('reg_code').value;
-                if (c.toUpperCase() !== MASTER_REG_CODE) return alert("Code falsch");
-                const { error } = await supabaseClient.auth.signUp({ email: e, password: p, options: { data: { display_name: n, store_number: s } } });
-                if (error) alert(error.message); else { alert("Registriert!"); location.reload(); }
+        async function submitSelection() {
+            const r = prompt("Nachricht (optional):");
+            const { error } = await supabaseClient.from('bookings').insert(selectedDates.map(d => ({ 
+                user_id: currentUser.id, requested_date: d, display_name: userProfile.display_name, store_number: userProfile.store_number, user_email: currentUser.email, reason_user: r, status: 'pending' 
+            })));
+            if (!error) { 
+                emailjs.init(EJS_PUBLIC_KEY);
+                emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" });
+                alert("Gesendet!"); clearSelection();
             }
         }
-        function toggleAuthMode() { document.getElementById('signup-fields').classList.toggle('hidden'); }
     </script>
 </body>
 </html>
