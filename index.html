@@ -15,7 +15,6 @@
         .day-pending { background-color: #eab308; color: black; }
         .day-vacation { background-color: #3b82f6; color: white; }
         .day-past { background-color: #3f3f46; color: #71717a; cursor: not-allowed; opacity: 0.6; }
-        /* Die Umrandung für ausgewählte Tage */
         .day-selected { border: 3px solid #ffffff !important; transform: scale(0.92); box-shadow: 0 0 15px rgba(255,255,255,0.4); z-index: 10; }
         .store-label { font-size: 0.45rem; background: rgba(0,0,0,0.4); width: 100%; text-align: center; padding: 1px 0; font-weight: 900; position: absolute; bottom: 0; border-radius: 0 0 10px 10px; overflow: hidden; white-space: nowrap; }
         #action-bar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translate(-50%, 150%); position: fixed; bottom: 1.5rem; left: 50%; z-index: 50; }
@@ -27,31 +26,30 @@
 <body class="bg-black text-white font-sans overflow-x-hidden">
     <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl pb-32">
         
-        <div id="loading" class="flex flex-col items-center py-20 text-yellow-500 font-bold animate-pulse uppercase tracking-widest text-xs">Springerplan wird geladen...</div>
+        <div id="loading" class="flex flex-col items-center py-20 text-yellow-500 font-bold animate-pulse uppercase tracking-widest text-xs">Springerplan lädt...</div>
 
         <div id="auth-section" class="hidden py-10 text-center">
             <h1 class="text-3xl font-black mb-1 text-yellow-500 italic uppercase">Springerplan</h1>
-            <p class="text-[8px] text-zinc-600 mb-8 uppercase tracking-[0.3em] font-bold">Secure Access</p>
-            <div class="space-y-3 px-4 text-left">
+            <div class="space-y-3 px-4 mt-8 text-left">
                 <input id="email" type="email" placeholder="E-Mail" class="w-full p-4 bg-zinc-800 rounded-2xl text-white outline-none">
                 <input id="password" type="password" placeholder="Passwort" class="w-full p-4 bg-zinc-800 rounded-2xl text-white outline-none">
                 <div id="signup-fields" class="hidden space-y-3 pt-2">
-                    <input id="display_name" type="text" placeholder="Vorname & Nachname" class="w-full p-4 bg-zinc-800 rounded-2xl text-white outline-none">
-                    <input id="store_number" type="text" inputmode="numeric" maxlength="3" placeholder="Filialnummer" class="w-full p-4 bg-zinc-800 rounded-2xl text-white outline-none">
-                    <input id="reg_code" type="text" placeholder="Einladungscode" class="w-full p-4 bg-zinc-800 border-2 border-yellow-500/20 rounded-2xl text-white outline-none font-bold uppercase text-center tracking-widest">
+                    <input id="display_name" type="text" placeholder="Name" class="w-full p-4 bg-zinc-800 rounded-2xl text-white outline-none">
+                    <input id="store_number" type="text" placeholder="Filialnummer" class="w-full p-4 bg-zinc-800 rounded-2xl text-white outline-none">
+                    <input id="reg_code" type="text" placeholder="Code" class="w-full p-4 bg-zinc-800 border-2 border-yellow-500/20 rounded-2xl text-white outline-none">
                 </div>
             </div>
-            <button onclick="handleAuthAction()" id="auth-btn-main" class="w-11/12 bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase mt-8 shadow-lg">Login</button>
+            <button onclick="handleAuthAction()" id="auth-btn-main" class="w-11/12 bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase mt-8">Login</button>
             <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="w-full mt-10 text-zinc-600 text-[10px] uppercase font-bold underline italic tracking-widest">Konto erstellen</button>
         </div>
 
         <div id="main-section" class="hidden">
-            <header class="flex justify-between items-center mb-8 bg-zinc-800/40 p-4 rounded-[2rem] border border-zinc-700/20 backdrop-blur-sm">
+            <header class="flex justify-between items-center mb-8 bg-zinc-800/40 p-4 rounded-[2rem] border border-zinc-700/20">
                 <div class="flex items-center gap-3">
                     <div class="w-9 h-9 bg-yellow-500 rounded-full flex items-center justify-center text-black font-black italic shadow-lg">S</div>
                     <div>
-                        <h2 id="user-welcome" class="text-xs font-black text-white uppercase italic">...</h2>
-                        <p id="user-store" class="text-[8px] text-yellow-500 mt-1 uppercase font-black tracking-widest"></p>
+                        <h2 id="user-welcome" class="text-xs font-black uppercase italic">...</h2>
+                        <p id="user-store" class="text-[8px] text-yellow-500 uppercase font-black"></p>
                     </div>
                 </div>
                 <button onclick="handleLogout()" class="text-[9px] bg-red-600/10 px-4 py-2 rounded-xl text-red-500 font-black uppercase">Logout</button>
@@ -59,9 +57,9 @@
 
             <section class="mb-12">
                 <div class="flex justify-between items-center mb-6 px-2">
-                    <button onclick="changeMonth(-1)" class="bg-zinc-800 p-2 rounded-full w-10 h-10 flex items-center justify-center">◀</button>
-                    <h3 id="month-name" class="text-sm font-black uppercase italic tracking-[0.25em] text-zinc-100">Monat</h3>
-                    <button onclick="changeMonth(1)" class="bg-zinc-800 p-2 rounded-full w-10 h-10 flex items-center justify-center">▶</button>
+                    <button onclick="changeMonth(-1)" class="bg-zinc-800 p-2 rounded-full w-10 h-10">◀</button>
+                    <h3 id="month-name" class="text-sm font-black uppercase italic tracking-widest text-zinc-100">Monat</h3>
+                    <button onclick="changeMonth(1)" class="bg-zinc-800 p-2 rounded-full w-10 h-10">▶</button>
                 </div>
                 <div class="grid grid-cols-7 gap-1 text-center text-[9px] text-zinc-600 mb-3 font-black uppercase tracking-widest">
                     <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div>
@@ -70,7 +68,7 @@
             </section>
 
             <div id="admin-panel" class="hidden mb-10 bg-yellow-500/5 p-6 rounded-[2.5rem] border border-yellow-500/20">
-                <h3 class="text-[9px] font-black text-yellow-500 uppercase mb-4 text-center tracking-[0.3em]">Offene Anfragen</h3>
+                <h3 class="text-[9px] font-black text-yellow-500 uppercase mb-4 text-center tracking-widest">Offene Anfragen</h3>
                 <div id="admin-list" class="space-y-3"></div>
             </div>
 
@@ -147,7 +145,6 @@
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const startDay = (new Date(year, month, 1).getDay() + 6) % 7;
             document.getElementById('month-name').innerText = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(currentViewDate);
-            
             for (let x = 0; x < startDay; x++) grid.innerHTML += `<div></div>`;
 
             for (let d = 1; d <= daysInMonth; d++) {
@@ -161,9 +158,7 @@
                     else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
                 }
 
-                // Prüfung auf Umrandung
                 const isSelected = selectedDates.includes(dateStr) ? 'day-selected' : '';
-
                 grid.innerHTML += `<div onclick="toggleDateSelection('${dateStr}')" 
                     class="calendar-day ${cls} ${isSelected}" data-id="${b?.id || ''}">
                     <span>${d}</span>${label ? `<span class="store-label">${label}</span>` : ''}</div>`;
@@ -171,25 +166,18 @@
         }
 
         function toggleDateSelection(d) {
-            if (selectedDates.includes(d)) {
-                selectedDates = selectedDates.filter(x => x !== d);
-            } else {
-                selectedDates.push(d);
-            }
+            selectedDates = selectedDates.includes(d) ? selectedDates.filter(x => x !== d) : [...selectedDates, d];
             updateActionBar();
-            fetchAndRender(); // Kalender neu zeichnen für Umrandung
+            fetchAndRender();
         }
 
         async function submitAdminAction(type) {
+            if (selectedDates.length === 0) return;
             if (type === 'direkt') {
                 const f = prompt("Filialnummer:");
                 if (f) {
                     await supabaseClient.from('bookings').insert(selectedDates.map(d => ({ 
-                        requested_date: d, 
-                        status: 'confirmed', 
-                        store_number: f, 
-                        display_name: 'Admin Eintrag',
-                        user_id: currentUser.id
+                        requested_date: d, status: 'confirmed', store_number: f, display_name: 'Einteilung', user_id: currentUser.id 
                     })));
                 }
             } else if (type === 'urlaub') {
@@ -197,14 +185,14 @@
                     requested_date: d, status: 'vacation', store_number: 'URLAUB', user_id: currentUser.id, display_name: userProfile.display_name 
                 })));
             } else if (type === 'frei') {
-                const ids = []; selectedDates.forEach(d => { 
-                    const el = document.querySelector(`[onclick*="${d}"]`); 
-                    if (el && el.dataset.id) ids.push(el.dataset.id); 
+                const ids = []; 
+                selectedDates.forEach(d => {
+                    const el = document.querySelector(`[onclick*="${d}"]`);
+                    if (el && el.dataset.id) ids.push(el.dataset.id);
                 });
                 if (ids.length) await supabaseClient.from('bookings').delete().in('id', ids);
             }
             clearSelection();
-            fetchAndRender();
         }
 
         async function submitSelection() {
@@ -215,7 +203,7 @@
             if (!error) { 
                 emailjs.init(EJS_PUBLIC_KEY);
                 await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "Einsatzanfrage" });
-                alert("Gesendet!"); clearSelection(); fetchAndRender();
+                alert("Anfrage gesendet!"); clearSelection();
             }
         }
 
@@ -235,7 +223,7 @@
             uL.innerHTML = ''; aL.innerHTML = '';
             data.sort((a,b) => b.requested_date.localeCompare(a.requested_date)).forEach(b => {
                 if (b.user_id === currentUser.id) {
-                    uL.innerHTML += `<div class="p-4 bg-zinc-800/30 rounded-2xl mb-2 flex justify-between items-center text-[9px] font-bold">
+                    uL.innerHTML += `<div class="p-4 bg-zinc-800/30 rounded-2xl mb-2 flex justify-between items-center text-[9px] font-bold border border-zinc-800">
                         <div>${b.requested_date} (Fil. ${b.store_number})</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
                 }
                 if (currentUser.email === ADMIN_EMAIL && b.status === 'pending') {
@@ -260,12 +248,12 @@
             const e = document.getElementById('email').value, p = document.getElementById('password').value;
             if (document.getElementById('signup-fields').classList.contains('hidden')) {
                 const { error } = await supabaseClient.auth.signInWithPassword({ email: e, password: p });
-                if (error) alert("Fehler!"); else location.reload();
+                if (error) alert("Login fehlgeschlagen"); else location.reload();
             } else {
                 const n = document.getElementById('display_name').value, s = document.getElementById('store_number').value, c = document.getElementById('reg_code').value;
-                if (c.toUpperCase() !== MASTER_REG_CODE) return alert("Code falsch!");
+                if (c.toUpperCase() !== MASTER_REG_CODE) return alert("Code falsch");
                 await supabaseClient.auth.signUp({ email: e, password: p, options: { data: { display_name: n, store_number: s } } });
-                alert("Registriert! Bitte Flo Bescheid geben."); location.reload();
+                alert("Registriert! Flo schaltet dich frei."); location.reload();
             }
         }
         function toggleAuthMode() { document.getElementById('signup-fields').classList.toggle('hidden'); }
