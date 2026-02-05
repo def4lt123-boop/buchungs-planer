@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Springerplan Digital</title>
+    <title>Springerplan Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-        .calendar-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; font-size: 0.7rem; font-weight: bold; cursor: pointer; -webkit-tap-highlight-color: transparent; overflow: hidden; }
+        .calendar-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; font-size: 0.7rem; font-weight: bold; cursor: pointer; -webkit-tap-highlight-color: transparent; overflow: hidden; position: relative; }
         .day-free { background-color: #22c55e; color: white; } 
-        .day-busy { background-color: #ef4444; color: white; } 
+        .day-busy { background-color: #ef4444; color: white; border: 2px solid #991b1b; } 
         .day-past { background-color: #3f3f46; color: #71717a; cursor: not-allowed; }
-        .store-label { font-size: 0.5rem; margin-top: 2px; background: rgba(0,0,0,0.2); width: 100%; text-align: center; padding: 1px 0; }
+        .store-label { font-size: 0.5rem; margin-top: 2px; background: rgba(0,0,0,0.3); width: 100%; text-align: center; padding: 1px 0; font-weight: 900; }
         * { user-select: none; -webkit-user-select: none; }
         input { user-select: auto !important; -webkit-user-select: auto !important; }
     </style>
@@ -20,55 +20,51 @@
 <body class="bg-black min-h-screen text-white font-sans overflow-x-hidden">
     <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl">
         
-        <div id="status-msg" class="hidden bg-red-600 text-white p-4 rounded-xl mb-4 text-sm font-bold shadow-lg"></div>
-
-        <div id="loading" class="flex flex-col items-center justify-center py-20 text-yellow-500">
-            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-yellow-500 mb-4"></div>
-            <p class="font-bold animate-pulse">Springerplan wird geladen...</p>
+        <div id="loading" class="flex flex-col items-center justify-center py-20 text-yellow-500 font-bold animate-pulse text-sm uppercase tracking-widest">
+            Springerplan wird synchronisiert...
         </div>
 
         <div id="auth-section" class="hidden py-10">
             <h1 class="text-4xl font-black mb-2 text-center text-yellow-500 italic uppercase">Springerplan</h1>
-            <p id="auth-mode-text" class="text-center text-zinc-500 text-xs mb-8 tracking-widest uppercase">Login</p>
+            <p id="auth-mode-text" class="text-center text-zinc-500 text-[10px] mb-8 tracking-[0.3em] uppercase font-bold">Zentral-Login</p>
             
             <div class="space-y-3">
                 <input id="email" type="email" placeholder="E-Mail" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none focus:ring-2 focus:ring-yellow-500 text-base">
                 <input id="password" type="password" placeholder="Passwort" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none focus:ring-2 focus:ring-yellow-500 text-base">
-                
                 <div id="signup-fields" class="hidden space-y-3">
-                    <input id="display_name" type="text" placeholder="Dein Name / Anzeigename" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none focus:ring-2 focus:ring-yellow-500 text-base">
-                    <input id="store_number" type="text" placeholder="Filialnummer (z.B. Fil. 100)" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none focus:ring-2 focus:ring-yellow-500 text-base">
+                    <input id="display_name" type="text" placeholder="Anzeigename (Dein Name)" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
+                    <input id="store_number" type="text" placeholder="Filialnummer" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
                 </div>
             </div>
 
-            <button id="auth-btn-main" onclick="handleAuthAction()" class="w-full bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase shadow-lg active:scale-95 transition-transform mt-6 text-lg">Einloggen</button>
-            <button id="auth-toggle-btn" onclick="toggleAuthMode()" class="w-full mt-8 text-zinc-500 text-[10px] uppercase tracking-widest font-bold underline">Noch kein Konto? Registrieren</button>
+            <button onclick="handleAuthAction()" id="auth-btn-main" class="w-full bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase shadow-lg mt-6 text-lg active:scale-95 transition-transform">Login</button>
+            <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="w-full mt-8 text-zinc-500 text-[10px] uppercase tracking-widest font-bold underline">Neues Konto registrieren</button>
         </div>
 
         <div id="main-section" class="hidden">
-            <header class="flex justify-between items-center mb-8 bg-zinc-800/30 p-3 rounded-2xl">
+            <header class="flex justify-between items-center mb-8 bg-zinc-800/40 p-3 rounded-2xl border border-zinc-700/30">
                 <div>
                     <h2 class="text-lg font-black italic text-yellow-500 uppercase leading-none">Springerplan</h2>
-                    <p id="user-display" class="text-[9px] text-zinc-500 mt-1 truncate max-w-[150px]"></p>
+                    <p id="user-display" class="text-[9px] text-zinc-500 mt-1 uppercase font-bold tracking-tighter"></p>
                 </div>
-                <button onclick="handleLogout()" class="text-[10px] bg-red-500/10 px-3 py-2 rounded-xl text-red-500 font-black uppercase border border-red-500/20">Logout</button>
+                <button onclick="handleLogout()" class="text-[10px] bg-red-600/20 px-4 py-2 rounded-xl text-red-500 font-black uppercase">Logout</button>
             </header>
 
             <section class="mb-10">
-                <h3 id="month-name" class="text-xl font-black mb-4 text-zinc-100 ml-1 italic">Monat</h3>
-                <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-zinc-500 mb-3 uppercase font-black">
+                <h3 id="month-name" class="text-xl font-black mb-4 text-zinc-100 ml-1 italic uppercase tracking-tight">Monat</h3>
+                <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-zinc-600 mb-3 uppercase font-black">
                     <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div>
                 </div>
                 <div id="calendar-grid" class="day-grid"></div>
             </section>
 
             <div id="admin-panel" class="hidden mb-10 bg-yellow-500/10 p-5 rounded-3xl border border-yellow-500/30 shadow-2xl">
-                <h3 class="text-xs font-black text-yellow-500 uppercase mb-4 text-center tracking-[0.2em]">Verwaltung (Admin)</h3>
-                <div id="admin-list" class="space-y-3 text-xs"></div>
+                <h3 class="text-[10px] font-black text-yellow-500 uppercase mb-4 text-center tracking-[0.3em]">Offene Anfragen</h3>
+                <div id="admin-list" class="space-y-3"></div>
             </div>
 
             <section class="pb-10">
-                <h3 class="text-xs font-black mb-4 text-zinc-600 uppercase tracking-widest ml-1">Deine Termine</h3>
+                <h3 class="text-[10px] font-black mb-4 text-zinc-600 uppercase tracking-widest ml-1">Meine Buchungen</h3>
                 <div id="booking-list" class="space-y-2"></div>
             </section>
         </div>
@@ -83,58 +79,40 @@
         let currentUser = null;
         let isSignupMode = false;
 
-        function setStatus(msg) {
-            const el = document.getElementById('status-msg');
-            if (!msg) { el.classList.add('hidden'); return; }
-            el.innerText = msg; el.classList.remove('hidden');
-        }
-
         window.addEventListener('load', () => {
-            let retryCount = 0;
-            const checkSupabase = setInterval(() => {
-                if (typeof supabase !== 'undefined') { clearInterval(checkSupabase); startApp(); }
-                else if (retryCount++ > 50) { clearInterval(checkSupabase); setStatus("Verbindung fehlgeschlagen."); }
+            const check = setInterval(() => {
+                if (typeof supabase !== 'undefined') { clearInterval(check); startApp(); }
             }, 100);
         });
 
         async function startApp() {
-            try {
-                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                currentUser = session?.user ?? null;
-                supabaseClient.auth.onAuthStateChange((_event, session) => {
-                    currentUser = session?.user ?? null;
-                    updateUI();
-                });
-                updateUI();
-            } catch (err) { setStatus("Start-Fehler: " + err.message); }
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            currentUser = session?.user ?? null;
+            supabaseClient.auth.onAuthStateChange((_e, s) => { currentUser = s?.user ?? null; updateUI(); });
+            updateUI();
         }
 
         function toggleAuthMode() {
             isSignupMode = !isSignupMode;
             document.getElementById('signup-fields').classList.toggle('hidden', !isSignupMode);
-            document.getElementById('auth-mode-text').innerText = isSignupMode ? "Registrierung" : "Login";
-            document.getElementById('auth-btn-main').innerText = isSignupMode ? "Konto erstellen" : "Einloggen";
-            document.getElementById('auth-toggle-btn').innerText = isSignupMode ? "Zurück zum Login" : "Noch kein Konto? Registrieren";
+            document.getElementById('auth-mode-text').innerText = isSignupMode ? "Registrierung" : "Zentral-Login";
+            document.getElementById('auth-btn-main').innerText = isSignupMode ? "Konto erstellen" : "Login";
         }
 
         async function handleAuthAction() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            
             if (isSignupMode) {
                 const name = document.getElementById('display_name').value;
                 const store = document.getElementById('store_number').value;
-                if(!name || !store) return alert("Bitte Name und Filialnummer angeben");
-                
                 const { error } = await supabaseClient.auth.signUp({ 
-                    email, password, 
-                    options: { data: { display_name: name, store_number: store } } 
+                    email, password, options: { data: { display_name: name, store_number: store } } 
                 });
-                if (error) alert(error.message); else alert("Registriert! Bitte einloggen.");
+                if (error) alert(error.message); else alert("Erfolg! Logge dich nun ein.");
             } else {
                 const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                if (error) alert(error.message);
+                if (error) alert("Login Fehler!");
             }
         }
 
@@ -146,7 +124,7 @@
             } else {
                 document.getElementById('auth-section').classList.add('hidden');
                 document.getElementById('main-section').classList.remove('hidden');
-                document.getElementById('user-display').innerText = currentUser.user_metadata.display_name || currentUser.email;
+                document.getElementById('user-display').innerText = `${currentUser.user_metadata.display_name || 'Admin'} | ${currentUser.user_metadata.store_number || 'HQ'}`;
                 document.getElementById('admin-panel').classList.toggle('hidden', currentUser.email !== ADMIN_EMAIL);
                 await fetchAndRender();
             }
@@ -154,96 +132,86 @@
 
         async function fetchAndRender() {
             const { data: bookings } = await supabaseClient.from('bookings').select('*');
-            const confirmedOnes = bookings.filter(b => b.status === 'confirmed');
-            renderCalendar(confirmedOnes);
-            renderLists(bookings);
+            renderCalendar(bookings || []);
+            renderLists(bookings || []);
         }
 
-        function renderCalendar(confirmedOnes) {
+        function renderCalendar(allBookings) {
             const grid = document.getElementById('calendar-grid');
             grid.innerHTML = '';
             const now = new Date();
             const year = now.getFullYear();
             const month = now.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7;
-            
+            const days = new Date(year, month + 1, 0).getDate();
+            const start = (new Date(year, month, 1).getDay() + 6) % 7;
             document.getElementById('month-name').innerText = `${["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"][month]} ${year}`;
 
-            for (let x = 0; x < firstDayIndex; x++) grid.innerHTML += `<div></div>`;
+            for (let x = 0; x < start; x++) grid.innerHTML += `<div></div>`;
 
-            const todayStr = new Date().toISOString().split('T')[0];
-            for (let d = 1; d <= daysInMonth; d++) {
+            const today = new Date().toISOString().split('T')[0];
+            for (let d = 1; d <= days; d++) {
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const booking = confirmedOnes.find(b => b.requested_date === dateStr);
-                const isPast = dateStr < todayStr;
+                const booking = allBookings.find(b => b.requested_date === dateStr && b.status === 'confirmed');
+                const isPast = dateStr < today;
                 
-                let statusClass = booking ? 'day-busy' : 'day-free';
-                if (isPast) statusClass = 'day-past';
+                let cls = booking ? 'day-busy' : 'day-free';
+                if (isPast) cls = 'day-past';
 
                 grid.innerHTML += `
-                    <div onclick="selectDate('${dateStr}', ${!!booking || isPast})" class="calendar-day ${statusClass}">
+                    <div onclick="handleClick('${dateStr}', ${!!booking}, ${isPast}, '${booking?.id || ''}')" class="calendar-day ${cls}">
                         <span>${d}</span>
-                        ${booking ? `<span class="store-label">${booking.store_number || 'Besetzt'}</span>` : ''}
+                        ${booking ? `<span class="store-label">${booking.store_number}</span>` : ''}
                     </div>`;
             }
         }
 
-        async function selectDate(date, disabled) {
-            if (disabled) return;
-            if (confirm(`Tag ${date} als ${currentUser.user_metadata.store_number} anfragen?`)) {
-                await supabaseClient.from('bookings').insert([{ 
-                    user_id: currentUser.id, 
-                    requested_date: date,
-                    display_name: currentUser.user_metadata.display_name,
-                    store_number: currentUser.user_metadata.store_number
-                }]);
-                fetchAndRender();
+        async function handleClick(date, isBusy, isPast, bookingId) {
+            if (isPast) return;
+            if (isBusy && currentUser.email === ADMIN_EMAIL) {
+                if (confirm(`Termin am ${date} stornieren und freigeben?`)) {
+                    await supabaseClient.from('bookings').delete().eq('id', bookingId);
+                    fetchAndRender();
+                }
+            } else if (!isBusy) {
+                if (confirm(`${date} verbindlich anfragen?`)) {
+                    await supabaseClient.from('bookings').insert([{ 
+                        user_id: currentUser.id, requested_date: date,
+                        display_name: currentUser.user_metadata.display_name,
+                        store_number: currentUser.user_metadata.store_number
+                    }]);
+                    fetchAndRender();
+                }
             }
         }
 
         function renderLists(data) {
-            const list = document.getElementById('booking-list');
-            const adminList = document.getElementById('admin-list');
-            list.innerHTML = ''; adminList.innerHTML = '';
+            const uList = document.getElementById('booking-list');
+            const aList = document.getElementById('admin-list');
+            uList.innerHTML = ''; aList.innerHTML = '';
 
             data.sort((a,b) => a.requested_date.localeCompare(b.requested_date)).forEach(b => {
-                // User Liste
                 if (b.user_id === currentUser.id) {
-                    list.innerHTML += `<div class="p-4 bg-zinc-800 rounded-2xl flex justify-between items-center text-xs border border-zinc-700 shadow-sm mb-2">
+                    uList.innerHTML += `<div class="p-4 bg-zinc-800 rounded-2xl flex justify-between items-center text-[10px] mb-2 border border-zinc-700">
                         <span class="font-bold">${b.requested_date}</span>
-                        <span class="${b.status === 'confirmed' ? 'text-green-500' : 'text-yellow-500'} font-black uppercase tracking-tighter">${b.status}</span>
+                        <span class="uppercase font-black ${b.status === 'confirmed' ? 'text-green-500' : 'text-yellow-500'}">${b.status}</span>
                     </div>`;
                 }
-                // Admin Liste (Anfragen + Storno-Möglichkeit)
-                if (currentUser.email === ADMIN_EMAIL) {
-                    const isPending = b.status === 'pending';
-                    adminList.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center shadow-lg mb-2">
-                        <div class="flex flex-col">
-                            <span class="font-black text-xs tracking-tight">${b.requested_date}</span>
-                            <span class="text-[9px] text-zinc-500 font-bold uppercase">${b.store_number || 'k.A.'} - ${b.display_name || 'k.A.'}</span>
-                        </div>
-                        <div class="flex gap-1">
-                            ${isPending ? `
-                                <button onclick="updateStatus('${b.id}', 'confirmed')" class="bg-green-600 text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase">Ja</button>
-                                <button onclick="updateStatus('${b.id}', 'rejected')" class="bg-red-600 text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase">Nein</button>
-                            ` : `
-                                <button onclick="updateStatus('${b.id}', 'pending')" class="bg-zinc-800 text-white px-3 py-2 rounded-xl text-[9px] font-black uppercase italic">Storno</button>
-                            `}
+                if (currentUser.email === ADMIN_EMAIL && b.status === 'pending') {
+                    aList.innerHTML += `<div class="bg-white text-black p-4 rounded-2xl flex justify-between items-center shadow-xl mb-2">
+                        <div class="flex flex-col"><span class="font-black text-xs leading-none">${b.requested_date}</span><span class="text-[8px] uppercase font-bold text-zinc-400 mt-1">${b.store_number} | ${b.display_name}</span></div>
+                        <div class="flex gap-2">
+                            <button onclick="updateStatus('${b.id}', 'confirmed')" class="bg-green-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase">Ja</button>
+                            <button onclick="deleteBooking('${b.id}')" class="bg-red-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase">Nein</button>
                         </div>
                     </div>`;
                 }
             });
         }
 
-        async function updateStatus(id, status) {
-            await supabaseClient.from('bookings').update({ status }).eq('id', id);
-            fetchAndRender();
-        }
-
+        async function updateStatus(id, status) { await supabaseClient.from('bookings').update({ status }).eq('id', id); fetchAndRender(); }
+        async function deleteBooking(id) { await supabaseClient.from('bookings').delete().eq('id', id); fetchAndRender(); }
         async function handleLogout() { await supabaseClient.auth.signOut(); location.reload(); }
-
-        init();
+        async function init() { startApp(); }
     </script>
 </body>
 </html>
