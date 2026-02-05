@@ -3,176 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Termin-Planer</title>
+    <title>Springerplan Digital</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-day { aspect-ratio: 1/1; display: flex; align-items: center; justify-center; border-radius: 4px; font-size: 0.75rem; font-weight: bold; position: relative; cursor: pointer; }
+        .day-free { background-color: #22c55e; color: white; } /* Grün */
+        .day-busy { background-color: #ef4444; color: white; cursor: not-allowed; } /* Rot */
+        .day-past { background-color: #e5e7eb; color: #9ca3af; cursor: not-allowed; } /* Grau */
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div id="app-container" class="max-w-md mx-auto bg-white min-h-screen shadow-lg p-4">
+<body class="bg-black min-h-screen text-white">
+    <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl">
         
-        <div id="error-display" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-xs"></div>
+        <div id="loading" class="text-center py-20">Lade Springerplan...</div>
 
-        <div id="loading" class="text-center py-10">Lade System...</div>
-
-        <div id="auth-section" class="hidden flex flex-col py-10">
-            <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">Termin-Planer</h1>
-            <input id="email" type="email" placeholder="E-Mail" class="p-3 border rounded mb-2 outline-none">
-            <input id="password" type="password" placeholder="Passwort" class="p-3 border rounded mb-4 outline-none">
-            <button onclick="handleLogin()" class="bg-blue-600 text-white py-3 rounded-lg font-bold mb-4 shadow">Einloggen</button>
-            <button onclick="handleSignup()" class="text-blue-500 text-sm">Neues Konto erstellen</button>
+        <div id="auth-section" class="hidden py-10">
+            <h1 class="text-3xl font-bold mb-8 text-center text-yellow-500 italic">Springerplan</h1>
+            <input id="email" type="email" placeholder="E-Mail" class="w-full p-4 bg-zinc-800 border-none rounded-xl mb-3 text-white">
+            <input id="password" type="password" placeholder="Passwort" class="w-full p-4 bg-zinc-800 border-none rounded-xl mb-6 text-white">
+            <button onclick="handleLogin()" class="w-full bg-yellow-500 text-black py-4 rounded-xl font-black uppercase shadow-lg">Login</button>
+            <button onclick="handleSignup()" class="w-full mt-4 text-zinc-400 text-sm">Registrieren</button>
         </div>
 
         <div id="main-section" class="hidden">
-            <header class="flex justify-between items-center mb-6 border-b pb-4">
-                <span id="user-display" class="font-medium text-gray-600 text-xs truncate mr-2"></span>
-                <button onclick="handleLogout()" class="text-red-500 text-xs font-bold uppercase">Logout</button>
+            <header class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-black italic text-yellow-500">Springerplan</h2>
+                <button onclick="handleLogout()" class="text-xs bg-zinc-800 px-3 py-1 rounded text-zinc-400">Logout</button>
             </header>
 
-            <div id="admin-panel" class="hidden mb-8 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                <h3 class="text-xs font-bold text-yellow-800 uppercase mb-3">Neue Anfragen</h3>
-                <div id="pending-list" class="space-y-2"></div>
+            <div class="flex gap-4 mb-4 text-[10px] uppercase font-bold">
+                <div class="flex items-center gap-1"><div class="w-3 h-3 bg-green-500 rounded"></div> Verfügbar</div>
+                <div class="flex items-center gap-1"><div class="w-3 h-3 bg-red-500 rounded"></div> Besetzt</div>
             </div>
 
             <section class="mb-8">
-                <h3 class="font-bold mb-3 text-gray-800">Tag anfragen</h3>
-                <input id="date-input" type="date" class="w-full p-3 border rounded-lg mb-3 shadow-sm">
-                <button onclick="requestDate()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold shadow-md">Anfrage senden</button>
+                <h3 id="month-name" class="text-lg font-bold mb-3">Februar 2026</h3>
+                <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-zinc-500 mb-2 uppercase font-bold">
+                    <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div>
+                </div>
+                <div id="calendar-grid" class="day-grid"></div>
             </section>
 
+            <div id="admin-panel" class="hidden mb-8 bg-yellow-500/10 p-4 rounded-2xl border border-yellow-500/30">
+                <h3 class="text-xs font-black text-yellow-500 uppercase mb-4 text-center">Eingehende Anfragen</h3>
+                <div id="pending-list" class="space-y-2"></div>
+            </div>
+
             <section>
-                <h3 class="font-bold mb-3 text-gray-800">Kalenderübersicht</h3>
-                <div id="booking-list" class="space-y-2 text-sm"></div>
+                <h3 class="text-sm font-bold mb-3 text-zinc-400 uppercase">Meine Anfragen</h3>
+                <div id="booking-list" class="space-y-2"></div>
             </section>
         </div>
     </div>
 
     <script>
-        // --- KONFIGURATION (DEINE DATEN) ---
         const SUPABASE_URL = 'https://aggpjaxpupqbsefsusok.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnZ3BqYXhwdXBxYnNlZnN1c29rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNzgxOTcsImV4cCI6MjA4NTg1NDE5N30.66Q-q1EIdn4_EWf_TCOanxwQ-_qB6-FaAYdHCYbLkHk';
         const ADMIN_EMAIL = 'def4lt123@gmail.com';
 
-        let supabaseClient;
+        let supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let currentUser = null;
-
-        // Fehler-Logger
-        function showError(msg) {
-            const errDiv = document.getElementById('error-display');
-            errDiv.innerText = msg;
-            errDiv.classList.remove('hidden');
-            console.error(msg);
-        }
+        let confirmedDates = [];
 
         async function init() {
-            try {
-                if (!supabase) throw new Error("Supabase Library nicht geladen!");
-                
-                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                
-                // Session laden
-                const { data: { session }, error } = await supabaseClient.auth.getSession();
-                if (error) throw error;
-                
-                currentUser = session?.user ?? null;
-
-                // Event Listener für Login-Änderungen
-                supabaseClient.auth.onAuthStateChange((_event, session) => {
-                    currentUser = session?.user ?? null;
-                    updateUI();
-                });
-
-                updateUI();
-            } catch (err) {
-                showError("Start-Fehler: " + err.message);
-                document.getElementById('loading').innerText = "Fehler beim Starten.";
-            }
-        }
-
-        async function handleLogin() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) alert("Login fehlgeschlagen: " + error.message);
-        }
-
-        async function handleSignup() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const { error } = await supabaseClient.auth.signUp({ email, password });
-            if (error) alert("Registrierung fehlgeschlagen: " + error.message);
-            else alert("Konto erstellt! Logge dich nun ein.");
-        }
-
-        async function handleLogout() { 
-            await supabaseClient.auth.signOut(); 
-            location.reload();
-        }
-
-        async function requestDate() {
-            const date = document.getElementById('date-input').value;
-            if(!date) return alert("Datum wählen!");
-            const { error } = await supabaseClient.from('bookings').insert([{ user_id: currentUser.id, requested_date: date }]);
-            if (error) alert(error.message); else fetchBookings();
-        }
-
-        async function fetchBookings() {
-            const { data, error } = await supabaseClient.from('bookings').select('*').order('requested_date', { ascending: true });
-            if (error) showError("Daten-Fehler: " + error.message);
-            else renderBookings(data || []);
-        }
-
-        function renderBookings(data) {
-            const list = document.getElementById('booking-list');
-            const pendingList = document.getElementById('pending-list');
-            list.innerHTML = ''; pendingList.innerHTML = '';
-
-            if (data.length === 0) list.innerHTML = '<p class="text-gray-400 italic">Noch keine Termine.</p>';
-
-            data.forEach(b => {
-                const isConfirmed = b.status === 'confirmed';
-                const item = `
-                    <div class="p-3 bg-gray-50 border rounded flex justify-between items-center shadow-sm">
-                        <span class="font-medium">${b.requested_date}</span>
-                        <span class="${isConfirmed ? 'text-green-600 font-bold' : 'text-orange-500'}">
-                            ${isConfirmed ? '✓ Fix' : '...Warten'}
-                        </span>
-                    </div>`;
-                list.innerHTML += item;
-
-                if (currentUser.email === ADMIN_EMAIL && b.status === 'pending') {
-                    pendingList.innerHTML += `
-                        <div class="flex justify-between items-center bg-white p-3 rounded border shadow-sm">
-                            <span class="text-xs font-bold">${b.requested_date}</span>
-                            <div class="flex gap-2">
-                                <button onclick="updateStatus('${b.id}', 'confirmed')" class="bg-green-500 text-white px-3 py-1 rounded text-xs">JA</button>
-                                <button onclick="updateStatus('${b.id}', 'rejected')" class="bg-red-500 text-white px-3 py-1 rounded text-xs">NEIN</button>
-                            </div>
-                        </div>`;
-                }
-            });
-        }
-
-        async function updateStatus(id, status) {
-            await supabaseClient.from('bookings').update({ status }).eq('id', id);
-            fetchBookings();
-        }
-
-        function updateUI() {
-            document.getElementById('loading').classList.add('hidden');
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            currentUser = session?.user ?? null;
             
+            supabaseClient.auth.onAuthStateChange((_event, session) => {
+                currentUser = session?.user ?? null;
+                updateUI();
+            });
+            updateUI();
+        }
+
+        async function updateUI() {
+            document.getElementById('loading').classList.add('hidden');
             if (!currentUser) {
                 document.getElementById('auth-section').classList.remove('hidden');
                 document.getElementById('main-section').classList.add('hidden');
             } else {
                 document.getElementById('auth-section').classList.add('hidden');
                 document.getElementById('main-section').classList.remove('hidden');
-                document.getElementById('user-display').innerText = "Eingeloggt als: " + currentUser.email;
                 document.getElementById('admin-panel').classList.toggle('hidden', currentUser.email !== ADMIN_EMAIL);
-                fetchBookings();
+                await fetchAndRender();
             }
         }
 
-        // App starten
+        async function fetchAndRender() {
+            const { data: bookings } = await supabaseClient.from('bookings').select('*');
+            confirmedDates = bookings.filter(b => b.status === 'confirmed').map(b => b.requested_date);
+            
+            renderCalendar();
+            renderLists(bookings);
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+            
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            
+            // Namen des Monats setzen
+            const monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+            document.getElementById('month-name').innerText = `${monthNames[month]} ${year}`;
+
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7; // Start bei Montag
+
+            // Leere Felder für den Wochenstart
+            for (let x = 0; x < firstDayIndex; x++) {
+                grid.innerHTML += `<div></div>`;
+            }
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const isBusy = confirmedDates.includes(dateStr);
+                const isPast = new Date(dateStr) < new Date().setHours(0,0,0,0);
+                
+                let statusClass = isBusy ? 'day-busy' : 'day-free';
+                if (isPast) statusClass = 'day-past';
+
+                grid.innerHTML += `<div onclick="selectDate('${dateStr}', ${isBusy || isPast})" class="calendar-day flex flex-col justify-center items-center ${statusClass}">
+                    <span>${d}</span>
+                </div>`;
+            }
+        }
+
+        function selectDate(date, disabled) {
+            if (disabled) return;
+            if (confirm(`Tag ${date} verbindlich anfragen?`)) {
+                sendRequest(date);
+            }
+        }
+
+        async function sendRequest(date) {
+            const { error } = await supabaseClient.from('bookings').insert([{ user_id: currentUser.id, requested_date: date }]);
+            if (error) alert(error.message); else fetchAndRender();
+        }
+
+        function renderLists(data) {
+            const list = document.getElementById('booking-list');
+            const pendingList = document.getElementById('pending-list');
+            list.innerHTML = ''; pendingList.innerHTML = '';
+
+            data.forEach(b => {
+                if (b.user_id === currentUser.id) {
+                    list.innerHTML += `<div class="p-3 bg-zinc-800 rounded-xl flex justify-between text-xs">
+                        <span>${b.requested_date}</span>
+                        <span class="${b.status === 'confirmed' ? 'text-green-500' : 'text-yellow-500'} uppercase font-bold">${b.status}</span>
+                    </div>`;
+                }
+
+                if (currentUser.email === ADMIN_EMAIL && b.status === 'pending') {
+                    pendingList.innerHTML += `<div class="bg-white text-black p-3 rounded-xl flex justify-between items-center shadow-lg">
+                        <span class="font-bold text-sm">${b.requested_date}</span>
+                        <div class="flex gap-2">
+                            <button onclick="updateStatus('${b.id}', 'confirmed')" class="bg-green-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold">JA</button>
+                            <button onclick="updateStatus('${b.id}', 'rejected')" class="bg-red-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold">NEIN</button>
+                        </div>
+                    </div>`;
+                }
+            });
+        }
+
+        async function updateStatus(id, status) {
+            await supabaseClient.from('bookings').update({ status }).eq('id', id);
+            fetchAndRender();
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            await supabaseClient.auth.signInWithPassword({ email, password });
+        }
+
+        async function handleSignup() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            await supabaseClient.auth.signUp({ email, password });
+            alert("Konto erstellt! Login jetzt möglich.");
+        }
+
+        async function handleLogout() { await supabaseClient.auth.signOut(); location.reload(); }
+
         init();
     </script>
 </body>
