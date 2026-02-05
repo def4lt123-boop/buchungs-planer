@@ -15,6 +15,7 @@
         .day-pending { background-color: #eab308; color: black; }
         .day-vacation { background-color: #3b82f6; color: white; }
         .day-past { background-color: #3f3f46; color: #71717a; cursor: not-allowed; opacity: 0.6; }
+        /* Weißer Rahmen für Auswahl */
         .day-selected { border: 3px solid #ffffff !important; transform: scale(0.92); box-shadow: 0 0 15px rgba(255,255,255,0.4); z-index: 10; }
         .store-label { font-size: 0.45rem; background: rgba(0,0,0,0.4); width: 100%; text-align: center; padding: 1px 0; font-weight: 900; position: absolute; bottom: 0; border-radius: 0 0 10px 10px; overflow: hidden; white-space: nowrap; }
         #action-bar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translate(-50%, 150%); position: fixed; bottom: 1.5rem; left: 50%; z-index: 50; }
@@ -40,7 +41,7 @@
                 </div>
             </div>
             <button onclick="handleAuthAction()" id="auth-btn-main" class="w-11/12 bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase mt-8">Login</button>
-            <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="w-full mt-10 text-zinc-600 text-[10px] uppercase font-bold underline italic tracking-widest">Konto erstellen</button>
+            <button onclick="toggleAuthMode()" class="w-full mt-10 text-zinc-600 text-[10px] uppercase font-bold underline italic tracking-widest">Konto erstellen</button>
         </div>
 
         <div id="main-section" class="hidden">
@@ -82,181 +83,4 @@
             <div class="flex flex-col gap-4">
                 <div id="selection-info" class="text-[9px] text-center font-black uppercase text-yellow-500 tracking-widest">0 Tage ausgewählt</div>
                 <div class="flex justify-center gap-2">
-                    <button onclick="clearSelection()" class="bg-zinc-700 text-white px-4 py-3 rounded-2xl text-[9px] font-black uppercase flex-1">Abbrechen</button>
-                    <button id="btn-submit" onclick="submitSelection()" class="bg-yellow-500 text-black px-4 py-3 rounded-2xl text-[9px] font-black uppercase flex-[2]">Senden</button>
-                </div>
-                <div id="admin-actions" class="hidden flex gap-2 pt-3 border-t border-zinc-700/50">
-                    <button onclick="submitAdminAction('direkt')" class="bg-white text-black px-3 py-2.5 rounded-xl text-[8px] font-black uppercase flex-1 italic">Direkt</button>
-                    <button onclick="submitAdminAction('urlaub')" class="bg-blue-600 text-white px-3 py-2.5 rounded-xl text-[8px] font-black uppercase flex-1 italic">Urlaub</button>
-                    <button onclick="submitAdminAction('frei')" class="bg-red-600 text-white px-3 py-2.5 rounded-xl text-[8px] font-black uppercase flex-1 italic">Löschen</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const SUPABASE_URL = 'https://aggpjaxpupqbsefsusok.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnZ3BqYXhwdXBxYnNlZnN1c29rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNzgxOTcsImV4cCI6MjA4NTg1NDE5N30.66Q-q1EIdn4_EWf_TCOanxwQ-_qB6-FaAYdHCYbLkHk';
-        const ADMIN_EMAIL = 'def4lt123@gmail.com';
-        const MASTER_REG_CODE = "FLO2026";
-        const EJS_SERVICE = "service_z1cwhnt", EJS_USER_TEMPLATE = "template_22cjt73", EJS_ADMIN_TEMPLATE = "template_avultfe", EJS_PUBLIC_KEY = "MkRGHMZNkwKnmQDLY";
-
-        let supabaseClient, currentUser = null, userProfile = null, currentViewDate = new Date(), selectedDates = [];
-
-        window.addEventListener('load', () => {
-            const check = setInterval(() => { if (typeof supabase !== 'undefined') { clearInterval(check); startApp(); } }, 100);
-        });
-
-        async function startApp() {
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            currentUser = session?.user ?? null;
-            if (currentUser) {
-                const { data } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
-                userProfile = data;
-            }
-            updateUI();
-        }
-
-        async function updateUI() {
-            document.getElementById('loading').classList.add('hidden');
-            if (!currentUser) {
-                document.getElementById('auth-section').classList.remove('hidden');
-                document.getElementById('main-section').classList.add('hidden');
-            } else {
-                document.getElementById('auth-section').classList.add('hidden');
-                document.getElementById('main-section').classList.remove('hidden');
-                document.getElementById('user-welcome').innerText = userProfile?.display_name || 'Admin';
-                document.getElementById('user-store').innerText = 'Filiale: ' + (userProfile?.store_number || '---');
-                document.getElementById('admin-panel').classList.toggle('hidden', currentUser.email !== ADMIN_EMAIL);
-                fetchAndRender();
-            }
-        }
-
-        async function fetchAndRender() {
-            const { data: b } = await supabaseClient.from('bookings').select('*');
-            renderCalendar(b || []);
-            renderLists(b || []);
-        }
-
-        function renderCalendar(all) {
-            const grid = document.getElementById('calendar-grid'); grid.innerHTML = '';
-            const year = currentViewDate.getFullYear(), month = currentViewDate.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const startDay = (new Date(year, month, 1).getDay() + 6) % 7;
-            document.getElementById('month-name').innerText = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(currentViewDate);
-            for (let x = 0; x < startDay; x++) grid.innerHTML += `<div></div>`;
-
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const b = all.find(x => x.requested_date === dateStr && x.status !== 'rejected');
-                
-                let cls = "day-free", label = "";
-                if (b) {
-                    if (b.status === 'confirmed') { cls = "day-busy"; label = "Fil. " + b.store_number; }
-                    else if (b.status === 'pending') { cls = "day-pending"; label = "OFFEN"; }
-                    else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
-                }
-
-                const isSelected = selectedDates.includes(dateStr) ? 'day-selected' : '';
-                grid.innerHTML += `<div onclick="toggleDateSelection('${dateStr}')" 
-                    class="calendar-day ${cls} ${isSelected}" data-id="${b?.id || ''}">
-                    <span>${d}</span>${label ? `<span class="store-label">${label}</span>` : ''}</div>`;
-            }
-        }
-
-        function toggleDateSelection(d) {
-            selectedDates = selectedDates.includes(d) ? selectedDates.filter(x => x !== d) : [...selectedDates, d];
-            updateActionBar();
-            fetchAndRender();
-        }
-
-        async function submitAdminAction(type) {
-            if (selectedDates.length === 0) return;
-            if (type === 'direkt') {
-                const f = prompt("Filialnummer:");
-                if (f) {
-                    await supabaseClient.from('bookings').insert(selectedDates.map(d => ({ 
-                        requested_date: d, status: 'confirmed', store_number: f, display_name: 'Einteilung', user_id: currentUser.id 
-                    })));
-                }
-            } else if (type === 'urlaub') {
-                await supabaseClient.from('bookings').insert(selectedDates.map(d => ({ 
-                    requested_date: d, status: 'vacation', store_number: 'URLAUB', user_id: currentUser.id, display_name: userProfile.display_name 
-                })));
-            } else if (type === 'frei') {
-                const ids = []; 
-                selectedDates.forEach(d => {
-                    const el = document.querySelector(`[onclick*="${d}"]`);
-                    if (el && el.dataset.id) ids.push(el.dataset.id);
-                });
-                if (ids.length) await supabaseClient.from('bookings').delete().in('id', ids);
-            }
-            clearSelection();
-        }
-
-        async function submitSelection() {
-            const r = prompt("Nachricht an Flo (optional):");
-            const { error } = await supabaseClient.from('bookings').insert(selectedDates.map(d => ({ 
-                user_id: currentUser.id, requested_date: d, display_name: userProfile.display_name, store_number: userProfile.store_number, user_email: currentUser.email, reason_user: r, status: 'pending' 
-            })));
-            if (!error) { 
-                emailjs.init(EJS_PUBLIC_KEY);
-                await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "Einsatzanfrage" });
-                alert("Anfrage gesendet!"); clearSelection();
-            }
-        }
-
-        function updateActionBar() { 
-            const b = document.getElementById('action-bar'), c = selectedDates.length; 
-            b.classList.toggle('visible', c > 0); 
-            document.getElementById('selection-info').innerText = `${c} Tage gewählt`; 
-            document.getElementById('admin-actions').classList.toggle('hidden', currentUser.email !== ADMIN_EMAIL); 
-        }
-
-        function clearSelection() { selectedDates = []; updateActionBar(); fetchAndRender(); }
-        function changeMonth(d) { currentViewDate.setMonth(currentViewDate.getMonth() + d); clearSelection(); }
-        async function handleLogout() { await supabaseClient.auth.signOut(); location.reload(); }
-        
-        function renderLists(data) {
-            const uL = document.getElementById('booking-list'), aL = document.getElementById('admin-list');
-            uL.innerHTML = ''; aL.innerHTML = '';
-            data.sort((a,b) => b.requested_date.localeCompare(a.requested_date)).forEach(b => {
-                if (b.user_id === currentUser.id) {
-                    uL.innerHTML += `<div class="p-4 bg-zinc-800/30 rounded-2xl mb-2 flex justify-between items-center text-[9px] font-bold border border-zinc-800">
-                        <div>${b.requested_date} (Fil. ${b.store_number})</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
-                }
-                if (currentUser.email === ADMIN_EMAIL && b.status === 'pending') {
-                    aL.innerHTML += `<div class="bg-white text-black p-4 rounded-2xl mb-2 flex justify-between items-center text-[9px] font-bold">
-                        <div>${b.requested_date} - Fil. ${b.store_number} (${b.display_name})</div>
-                        <button onclick="processRequest('${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-1 rounded-lg">OK</button>
-                    </div>`;
-                }
-            });
-        }
-
-        async function processRequest(id, status, email, date) {
-            await supabaseClient.from('bookings').update({ status }).eq('id', id);
-            if (email) {
-                emailjs.init(EJS_PUBLIC_KEY);
-                await emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email: email, status_text: 'BESTÄTIGT', date: date });
-            }
-            fetchAndRender();
-        }
-
-        async function handleAuthAction() {
-            const e = document.getElementById('email').value, p = document.getElementById('password').value;
-            if (document.getElementById('signup-fields').classList.contains('hidden')) {
-                const { error } = await supabaseClient.auth.signInWithPassword({ email: e, password: p });
-                if (error) alert("Login fehlgeschlagen"); else location.reload();
-            } else {
-                const n = document.getElementById('display_name').value, s = document.getElementById('store_number').value, c = document.getElementById('reg_code').value;
-                if (c.toUpperCase() !== MASTER_REG_CODE) return alert("Code falsch");
-                await supabaseClient.auth.signUp({ email: e, password: p, options: { data: { display_name: n, store_number: s } } });
-                alert("Registriert! Flo schaltet dich frei."); location.reload();
-            }
-        }
-        function toggleAuthMode() { document.getElementById('signup-fields').classList.toggle('hidden'); }
-    </script>
-</body>
-</html>
+                    <button onclick="clearSelection()" class="bg-zinc-700 text-white px-4 py-3 rounded-2xl text-
