@@ -118,7 +118,7 @@
         const SUPABASE_URL = 'https://aggpjaxpupqbsefsusok.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnZ3BqYXhwdXBxYnNlZnN1c29rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNzgxOTcsImV4cCI6MjA4NTg1NDE5N30.66Q-q1EIdn4_EWf_TCOanxwQ-_qB6-FaAYdHCYbLkHk';
         const ADMIN_EMAIL = 'def4lt123@gmail.com';
-        const MASTER_REG_CODE = "SPRINGER2024";
+        const MASTER_REG_CODE = "FLO2026";
 
         const EJS_SERVICE = "service_z1cwhnt";
         const EJS_USER_TEMPLATE = "template_22cjt73"; 
@@ -134,7 +134,6 @@
         });
 
         // Feiertags-Check (Österreich 2024-2027)
-        // Karfreitag und 08.12. bleiben als Arbeitstage offen.
         function isHoliday(dateStr) {
             const holidays = [
                 // 2024
@@ -303,7 +302,7 @@
         }
 
         function toggleDateSelection(d) { selectedDates = selectedDates.includes(d) ? selectedDates.filter(x => x !== d) : [...selectedDates, d]; updateActionBar(); fetchAndRender(); }
-        function updateActionBar() { const b = document.getElementById('action-bar'), c = selectedDates.length; if (c > 0) { b.classList.add('visible'); document.getElementById('selection-info').innerText = `${c} Tage ausgewählt`; document.getElementById('admin-actions').classList.toggle('hidden', currentUser.email !== ADMIN_EMAIL); } else { b.classList.remove('visible'); } }
+        function updateActionBar() { const b = document.getElementById('action-bar'), c = selectedDates.length; if (c > 0) { b.classList.add('visible'); document.getElementById('selection-info').innerText = `${c} Tage gewählt`; document.getElementById('admin-actions').classList.toggle('hidden', currentUser.email !== ADMIN_EMAIL); } else { b.classList.remove('visible'); } }
         function clearSelection() { selectedDates = []; updateActionBar(); fetchAndRender(); }
         function changeMonth(d) { currentViewDate.setMonth(currentViewDate.getMonth() + d); clearSelection(); }
         function toggleAuthMode() { const s = document.getElementById('signup-fields'); s.classList.toggle('hidden'); document.getElementById('auth-btn-main').innerText = s.classList.contains('hidden') ? 'Login' : 'Registrieren'; }
