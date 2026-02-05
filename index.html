@@ -23,13 +23,12 @@
 <body class="bg-black text-white font-sans overflow-x-hidden">
     <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl">
         
-        <div id="loading" class="flex flex-col items-center py-20 text-yellow-500 font-bold animate-pulse">Lade Springerplan...</div>
+        <div id="loading" class="flex flex-col items-center py-20 text-yellow-500 font-bold animate-pulse uppercase tracking-widest">Lade Springerplan...</div>
 
         <div id="auth-section" class="hidden py-10">
             <h1 class="text-3xl font-black mb-2 text-center text-yellow-500 italic uppercase">Springerplan</h1>
             <p class="text-[10px] text-center text-zinc-500 mb-8 uppercase tracking-widest font-bold">made by Flo</p>
-            
-            <div class="space-y-3">
+            <div class="space-y-3 px-4">
                 <input id="email" type="email" placeholder="E-Mail" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
                 <input id="password" type="password" placeholder="Passwort" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
                 <div id="signup-fields" class="hidden space-y-3">
@@ -37,9 +36,8 @@
                     <input id="store_number" type="text" placeholder="Filiale" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
                 </div>
             </div>
-
             <button onclick="handleAuthAction()" id="auth-btn-main" class="w-full bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase mt-6 active:scale-95 transition-transform">Login</button>
-            <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="w-full mt-8 text-zinc-500 text-[10px] uppercase font-bold underline">Neues Konto erstellen</button>
+            <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="w-full mt-8 text-zinc-500 text-[10px] uppercase font-bold underline text-center">Neues Konto erstellen</button>
         </div>
 
         <div id="main-section" class="hidden">
@@ -63,7 +61,7 @@
                 <div id="calendar-grid" class="day-grid"></div>
             </section>
 
-            <div id="admin-panel" class="hidden mb-6 bg-yellow-500/5 p-5 rounded-[2rem] border border-yellow-500/20">
+            <div id="admin-panel" class="hidden mb-6 bg-yellow-500/5 p-5 rounded-[2rem] border border-yellow-500/20 shadow-2xl">
                 <h3 class="text-[10px] font-black text-yellow-500 uppercase mb-4 text-center tracking-widest">Offene Anfragen</h3>
                 <div id="admin-list" class="space-y-3"></div>
             </div>
@@ -78,9 +76,10 @@
     <script>
         const SUPABASE_URL = 'https://aggpjaxpupqbsefsusok.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnZ3BqYXhwdXBxYnNlZnN1c29rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNzgxOTcsImV4cCI6MjA4NTg1NDE5N30.66Q-q1EIdn4_EWf_TCOanxwQ-_qB6-FaAYdHCYbLkHk';
+        const RESEND_API_KEY = 're_LhK4XbNT_QCx8gvWbbjLs5ct5gKxymrV5'; 
         const ADMIN_EMAIL = 'def4lt123@gmail.com';
 
-        let supabaseClient, currentUser = null, currentViewDate = new Date();
+        let supabaseClient, currentUser = null, currentViewDate = new Date(), isSignupMode = false;
 
         window.addEventListener('load', () => {
             const check = setInterval(() => { if (typeof supabase !== 'undefined') { clearInterval(check); startApp(); } }, 100);
@@ -94,55 +93,61 @@
             updateUI();
         }
 
+        async function sendEmailNotification(toEmail, status, date) {
+            if (!toEmail) return;
+            const isConfirmed = status === 'confirmed';
+            const subject = isConfirmed ? `Springerplan: Bestätigt (${date})` : `Springerplan: Ablehnung (${date})`;
+            const body = isConfirmed 
+                ? `Gute Nachrichten!\nDeine Anfrage für den ${date} wurde BESTÄTIGT.\n\nSpringerplan made by Flo`
+                : `Hallo!\nLeider konnte deine Anfrage für den ${date} NICHT bestätigt werden.\n\nSpringerplan made by Flo`;
+
+            try {
+                await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ from: 'Springerplan <onboarding@resend.dev>', to: [toEmail], subject: subject, text: body })
+                });
+            } catch (e) { console.error("Mail Error", e); }
+        }
+
         function isAustrianHoliday(date, year) {
             const d = date.getDate(), m = date.getMonth() + 1;
             const holidays = ["1.1", "6.1", "1.5", "15.8", "26.10", "1.11", "25.12", "26.12"];
             if (holidays.includes(`${d}.${m}`)) return true;
-            // Oster-Check
             const a = year % 19, b = year % 4, c = year % 7, k = Math.floor(year / 100), p = Math.floor((13 + 8 * k) / 25), q = Math.floor(k / 4), M = (15 - p + k - q) % 30, N = (4 + k - q) % 7, d_ost = (19 * a + M) % 30, e_ost = (2 * b + 4 * c + 6 * d_ost + N) % 7;
             const ostern = new Date(year, 2, 22 + d_ost + e_ost + 1);
-            const moveables = [
-                new Date(ostern).getTime() + 86400000, // Ostermontag
-                new Date(ostern).getTime() + 39 * 86400000, // Christi Himmelfahrt
-                new Date(ostern).getTime() + 50 * 86400000, // Pfingstmontag
-                new Date(ostern).getTime() + 60 * 86400000  // Fronleichnam
-            ];
+            const moveables = [ostern.getTime()+86400000, ostern.getTime()+39*86400000, ostern.getTime()+50*86400000, ostern.getTime()+60*86400000];
             return moveables.some(h => new Date(h).toDateString() === date.toDateString());
         }
 
         async function fetchAndRender() {
-            const { data: bookings } = await supabaseClient.from('bookings').select('*');
-            renderCalendar(bookings || []);
-            renderLists(bookings || []);
+            const { data } = await supabaseClient.from('bookings').select('*');
+            renderCalendar(data || []);
+            renderLists(data || []);
         }
 
-        function renderCalendar(allBookings) {
+        function renderCalendar(all) {
             const grid = document.getElementById('calendar-grid'); grid.innerHTML = '';
             const year = currentViewDate.getFullYear(), month = currentViewDate.getMonth();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const startDay = (new Date(year, month, 1).getDay() + 6) % 7;
             document.getElementById('month-name').innerText = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(currentViewDate);
-
             for (let x = 0; x < startDay; x++) grid.innerHTML += `<div></div>`;
-
             const today = new Date().toISOString().split('T')[0];
             for (let d = 1; d <= daysInMonth; d++) {
                 const dateObj = new Date(year, month, d);
                 const dateStr = dateObj.toISOString().split('T')[0];
-                const booking = allBookings.find(b => b.requested_date === dateStr && (b.status === 'confirmed' || b.status === 'pending' || b.status === 'vacation'));
-                
+                const b = all.find(x => x.requested_date === dateStr && (x.status === 'confirmed' || x.status === 'pending' || x.status === 'vacation'));
                 let cls = "day-free", label = "", isClickable = true;
-
                 if (dateStr < today) { cls = "day-past"; isClickable = false; }
                 else if (dateObj.getDay() === 0 || isAustrianHoliday(dateObj, year)) { cls = "day-holiday"; isClickable = false; }
-                else if (booking) {
-                    if (booking.status === 'confirmed') { cls = "day-busy"; label = booking.store_number; }
-                    else if (booking.status === 'pending') { cls = "day-pending"; label = "OFFEN"; }
-                    else if (booking.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
-                    isClickable = currentUser.email === ADMIN_EMAIL;
+                else if (b) {
+                    if (b.status === 'confirmed') { cls = "day-busy"; label = b.store_number; }
+                    else if (b.status === 'pending') { cls = "day-pending"; label = "OFFEN"; }
+                    else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
+                    isClickable = (currentUser.email === ADMIN_EMAIL);
                 }
-
-                grid.innerHTML += `<div onclick="${isClickable ? `handleClick('${dateStr}', '${booking?.status || 'free'}', '${booking?.id || ''}')` : ''}" class="calendar-day ${cls}">
+                grid.innerHTML += `<div onclick="${isClickable ? `handleClick('${dateStr}', '${b?.status || 'free'}', '${b?.id || ''}')` : ''}" class="calendar-day ${cls}">
                     <span>${d}</span>${label ? `<span class="store-label">${label}</span>` : ''}
                 </div>`;
             }
@@ -150,16 +155,28 @@
 
         async function handleClick(date, status, id) {
             if (currentUser.email === ADMIN_EMAIL) {
-                const action = prompt("Aktion wählen: 'urlaub', 'storno' oder 'frei'");
-                if (action === 'urlaub') await supabaseClient.from('bookings').insert([{ requested_date: date, status: 'vacation', store_number: 'URLAUB', user_id: currentUser.id, display_name: 'ADMIN' }]);
+                const action = prompt("Aktion: 'urlaub', 'storno' oder 'frei'");
+                if (action === 'urlaub') await supabaseClient.from('bookings').insert([{ requested_date: date, status: 'vacation', store_number: 'URLAUB', user_id: currentUser.id, display_name: 'ADMIN', user_email: ADMIN_EMAIL }]);
                 else if (action === 'storno' && id) await supabaseClient.from('bookings').update({ status: 'cancelled' }).eq('id', id);
                 else if (action === 'frei' && id) await supabaseClient.from('bookings').delete().eq('id', id);
                 fetchAndRender();
             } else if (status === 'free') {
-                const grund = prompt("Grund (optional):");
-                await supabaseClient.from('bookings').insert([{ user_id: currentUser.id, requested_date: date, display_name: currentUser.user_metadata.display_name, store_number: currentUser.user_metadata.store_number, reason_user: grund, status: 'pending' }]);
+                const g = prompt("Grund (optional):");
+                await supabaseClient.from('bookings').insert([{ 
+                    user_id: currentUser.id, requested_date: date, 
+                    display_name: currentUser.user_metadata.display_name, 
+                    store_number: currentUser.user_metadata.store_number, 
+                    user_email: currentUser.email, // <--- Speichert die Email für die Benachrichtigung
+                    reason_user: g, status: 'pending' 
+                }]);
                 fetchAndRender();
             }
+        }
+
+        async function processRequest(id, status, email, date) {
+            await supabaseClient.from('bookings').update({ status }).eq('id', id);
+            if (email) await sendEmailNotification(email, status, date);
+            fetchAndRender();
         }
 
         function renderLists(data) {
@@ -175,18 +192,12 @@
                     aL.innerHTML += `<div class="bg-white text-black p-4 rounded-2xl flex justify-between items-center shadow-lg mb-2">
                         <span class="font-bold text-xs">${b.requested_date} (${b.store_number})</span>
                         <div class="flex gap-2">
-                            <button onclick="processRequest('${b.id}', 'confirmed')" class="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-[9px]">JA</button>
-                            <button onclick="processRequest('${b.id}', 'rejected')" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-[9px]">NEIN</button>
+                            <button onclick="processRequest('${b.id}', 'confirmed', '${b.user_email}', '${b.requested_date}')" class="bg-green-600 text-white px-4 py-2 rounded-xl font-bold text-[9px]">JA</button>
+                            <button onclick="processRequest('${b.id}', 'rejected', '${b.user_email}', '${b.requested_date}')" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-[9px]">NEIN</button>
                         </div>
                     </div>`;
                 }
             });
-        }
-
-        async function processRequest(id, status) {
-            await supabaseClient.from('bookings').update({ status }).eq('id', id);
-            // Info: Hier könnte man eine Edge Function aufrufen für E-Mails.
-            fetchAndRender();
         }
 
         function changeMonth(dir) { currentViewDate.setMonth(currentViewDate.getMonth() + dir); fetchAndRender(); }
@@ -205,7 +216,8 @@
             if (isSignupMode) {
                 const n = document.getElementById('display_name').value, s = document.getElementById('store_number').value;
                 await supabaseClient.auth.signUp({ email: e, password: p, options: { data: { display_name: n, store_number: s } } });
-            } else { await supabaseClient.auth.signInWithPassword({ email: e, password: p }); }
+                alert("Account erstellt! Bitte einloggen."); toggleAuthMode();
+            } else { const { error } = await supabaseClient.auth.signInWithPassword({ email: e, password: p }); if (error) alert("Login fehlgeschlagen!"); }
         }
         async function handleLogout() { await supabaseClient.auth.signOut(); location.reload(); }
     </script>
