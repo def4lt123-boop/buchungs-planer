@@ -34,7 +34,7 @@
                 <input id="password" type="password" placeholder="Passwort" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
                 <div id="signup-fields" class="hidden space-y-3">
                     <input id="display_name" type="text" placeholder="Dein Name" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
-                    <input id="store_number" type="text" placeholder="Filiale (z.B. 000)" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
+                    <input id="store_number" type="text" placeholder="Filialnummer (z.B. 000)" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
                 </div>
             </div>
             <button onclick="handleAuthAction()" id="auth-btn-main" class="w-11/12 bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase mt-6 active:scale-95 transition-transform">Login</button>
@@ -101,20 +101,25 @@
             updateUI();
         }
 
-        // --- EMAIL FUNKTION (Passend für dein Template Screenshot) ---
+        // --- EMAIL FUNKTION ---
         async function sendEmailNotification(toEmail, status, date) {
             if (!toEmail) return;
-            const statusText = status === 'confirmed' ? 'BESTÄTIGT' : 'ABGELEHNT';
+            
+            // Status-Mapping für schöneren Text
+            let statusText = status.toUpperCase();
+            if (status === 'confirmed') statusText = 'BESTÄTIGT';
+            if (status === 'rejected') statusText = 'ABGELEHNT';
+            if (status === 'storniert') statusText = 'STORNIERT';
             
             const templateParams = {
-                email: toEmail,         // {{email}} im Template
-                status_text: statusText, // {{status_text}} im Template
-                date: date               // {{date}} im Template
+                email: toEmail,         // {{email}}
+                status_text: statusText, // {{status_text}}
+                date: date               // {{date}}
             };
 
             try {
                 await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
-                console.log("Email versendet an: " + toEmail);
+                console.log("Email versendet an: " + toEmail + " (Status: " + statusText + ")");
             } catch (error) {
                 console.error("EmailJS Fehler:", error);
             }
@@ -167,9 +172,25 @@
         async function handleClick(date, status, id) {
             if (currentUser.email === ADMIN_EMAIL) {
                 const action = prompt("Aktion: 'urlaub', 'storno' oder 'frei'");
-                if (action === 'urlaub') await supabaseClient.from('bookings').insert([{ requested_date: date, status: 'vacation', store_number: 'URLAUB', user_id: currentUser.id, display_name: 'ADMIN', user_email: ADMIN_EMAIL }]);
-                else if (action === 'storno' && id) await supabaseClient.from('bookings').update({ status: 'cancelled' }).eq('id', id);
-                else if (action === 'frei' && id) await supabaseClient.from('bookings').delete().eq('id', id);
+                
+                // Buchungsdaten laden um die Email-Adresse zu erhalten
+                let userEmail = null;
+                if (id) {
+                    const { data: bData } = await supabaseClient.from('bookings').select('user_email').eq('id', id).single();
+                    if (bData) userEmail = bData.user_email;
+                }
+
+                if (action === 'urlaub') {
+                    await supabaseClient.from('bookings').insert([{ requested_date: date, status: 'vacation', store_number: 'URLAUB', user_id: currentUser.id, display_name: 'ADMIN', user_email: ADMIN_EMAIL }]);
+                } 
+                else if (action === 'storno' && id) {
+                    await supabaseClient.from('bookings').update({ status: 'storniert' }).eq('id', id);
+                    if (userEmail) await sendEmailNotification(userEmail, 'storniert', date);
+                } 
+                else if (action === 'frei' && id) {
+                    if (userEmail) await sendEmailNotification(userEmail, 'freigegeben/gelöscht', date);
+                    await supabaseClient.from('bookings').delete().eq('id', id);
+                }
                 fetchAndRender();
             } else if (status === 'free') {
                 const g = prompt("Grund (optional):");
