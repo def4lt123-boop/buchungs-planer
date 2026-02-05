@@ -14,31 +14,29 @@
         .day-past { background-color: #3f3f46; color: #71717a; cursor: not-allowed; }
         .store-label { font-size: 0.5rem; margin-top: 2px; background: rgba(0,0,0,0.3); width: 100%; text-align: center; padding: 1px 0; font-weight: 900; }
         * { user-select: none; -webkit-user-select: none; }
-        input { user-select: auto !important; -webkit-user-select: auto !important; }
+        input, textarea { user-select: auto !important; -webkit-user-select: auto !important; }
     </style>
 </head>
 <body class="bg-black min-h-screen text-white font-sans overflow-x-hidden">
     <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl">
         
         <div id="loading" class="flex flex-col items-center justify-center py-20 text-yellow-500 font-bold animate-pulse text-sm uppercase tracking-widest">
-            Synchronisiere Plan...
+            Springerplan lädt...
         </div>
 
         <div id="auth-section" class="hidden py-10">
-            <h1 class="text-4xl font-black mb-2 text-center text-yellow-500 italic uppercase">Springerplan</h1>
+            <h1 class="text-4xl font-black mb-2 text-center text-yellow-500 italic uppercase font-serif">Springerplan</h1>
             <p id="auth-mode-text" class="text-center text-zinc-500 text-[10px] mb-8 tracking-[0.3em] uppercase font-bold">Zentral-Login</p>
-            
             <div class="space-y-3">
                 <input id="email" type="email" placeholder="E-Mail" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none focus:ring-2 focus:ring-yellow-500 text-base">
                 <input id="password" type="password" placeholder="Passwort" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none focus:ring-2 focus:ring-yellow-500 text-base">
                 <div id="signup-fields" class="hidden space-y-3">
-                    <input id="display_name" type="text" placeholder="Dein Name" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
+                    <input id="display_name" type="text" placeholder="Vorname Nachname" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
                     <input id="store_number" type="text" placeholder="Filialnummer" class="w-full p-4 bg-zinc-800 border-none rounded-2xl text-white outline-none">
                 </div>
             </div>
-
             <button onclick="handleAuthAction()" id="auth-btn-main" class="w-full bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase shadow-lg mt-6 text-lg active:scale-95 transition-transform">Login</button>
-            <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="w-full mt-8 text-zinc-500 text-[10px] uppercase tracking-widest font-bold underline">Neues Konto registrieren</button>
+            <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="w-full mt-8 text-zinc-500 text-[10px] uppercase tracking-widest font-bold underline">Konto registrieren</button>
         </div>
 
         <div id="main-section" class="hidden">
@@ -47,7 +45,7 @@
                     <h2 class="text-lg font-black italic text-yellow-500 uppercase leading-none">Springerplan</h2>
                     <p id="user-display" class="text-[9px] text-zinc-500 mt-1 uppercase font-bold tracking-tighter"></p>
                 </div>
-                <button onclick="handleLogout()" class="text-[10px] bg-red-600/20 px-4 py-2 rounded-xl text-red-500 font-black uppercase">Logout</button>
+                <button onclick="handleLogout()" class="text-[10px] bg-red-600/20 px-4 py-2 rounded-xl text-red-500 font-black uppercase border border-red-500/20">Logout</button>
             </header>
 
             <section class="mb-10">
@@ -58,7 +56,7 @@
                 <div id="calendar-grid" class="day-grid"></div>
             </section>
 
-            <div id="admin-panel" class="hidden mb-10 bg-yellow-500/10 p-5 rounded-3xl border border-yellow-500/30 shadow-2xl">
+            <div id="admin-panel" class="hidden mb-10 bg-yellow-500/5 p-5 rounded-3xl border border-yellow-500/20 shadow-2xl">
                 <h3 class="text-[10px] font-black text-yellow-500 uppercase mb-4 text-center tracking-[0.3em]">Disposition (Admin)</h3>
                 <div id="admin-list" class="space-y-3"></div>
             </div>
@@ -98,7 +96,7 @@
             document.getElementById('signup-fields').classList.toggle('hidden', !isSignupMode);
             document.getElementById('auth-mode-text').innerText = isSignupMode ? "Registrierung" : "Zentral-Login";
             document.getElementById('auth-btn-main').innerText = isSignupMode ? "Konto erstellen" : "Login";
-            document.getElementById('auth-toggle-btn').innerText = isSignupMode ? "Zurück zum Login" : "Noch kein Konto? Registrieren";
+            document.getElementById('auth-toggle-btn').innerText = isSignupMode ? "Zurück zum Login" : "Neues Konto registrieren";
         }
 
         async function handleAuthAction() {
@@ -110,10 +108,10 @@
                 const { error } = await supabaseClient.auth.signUp({ 
                     email, password, options: { data: { display_name: name, store_number: store } } 
                 });
-                if (error) alert(error.message); else alert("Konto erstellt! Jetzt einloggen.");
+                if (error) alert(error.message); else alert("Erfolg!");
             } else {
                 const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                if (error) alert("Login fehlgeschlagen!");
+                if (error) alert("Fehler beim Login!");
             }
         }
 
@@ -152,10 +150,8 @@
             const today = new Date().toISOString().split('T')[0];
             for (let d = 1; d <= days; d++) {
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                // NUR Bestätigte Termine blockieren den Kalender
                 const booking = allBookings.find(b => b.requested_date === dateStr && b.status === 'confirmed');
                 const isPast = dateStr < today;
-                
                 let cls = booking ? 'day-busy' : 'day-free';
                 if (isPast) cls = 'day-past';
 
@@ -169,31 +165,32 @@
 
         async function handleClick(date, isBusy, isPast, bookingId) {
             if (isPast) return;
-            // Admin klickt auf roten Tag -> Storno
             if (isBusy && currentUser.email === ADMIN_EMAIL) {
-                if (confirm(`Buchung für den ${date} stornieren? Tag wird wieder frei.`)) {
-                    await supabaseClient.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId);
+                const note = prompt("Stornierungsgrund angeben:");
+                if (note !== null) {
+                    await supabaseClient.from('bookings').update({ status: 'cancelled', reason_admin: note }).eq('id', bookingId);
                     fetchAndRender();
                 }
             } else if (!isBusy) {
-                if (confirm(`${date} anfragen?`)) {
+                const grund = prompt(`${date} anfragen. Buchungsgrund (optional):`);
+                if (grund !== null) {
                     await supabaseClient.from('bookings').insert([{ 
                         user_id: currentUser.id, requested_date: date,
                         display_name: currentUser.user_metadata.display_name,
                         store_number: currentUser.user_metadata.store_number,
-                        status: 'pending'
+                        reason_user: grund, status: 'pending'
                     }]);
                     fetchAndRender();
                 }
             }
         }
 
-        function getStatusText(status) {
+        function getStatusInfo(status) {
             switch(status) {
-                case 'confirmed': return 'Bestätigt';
-                case 'rejected': return 'Abgelehnt';
-                case 'cancelled': return 'Storniert';
-                default: return 'Offen';
+                case 'confirmed': return { text: 'Bestätigt', color: 'text-green-500' };
+                case 'rejected': return { text: 'Abgelehnt', color: 'text-red-500' };
+                case 'cancelled': return { text: 'Storniert', color: 'text-orange-500' };
+                default: return { text: 'Offen', color: 'text-yellow-500' };
             }
         }
 
@@ -201,40 +198,52 @@
             const uList = document.getElementById('booking-list');
             const aList = document.getElementById('admin-list');
             uList.innerHTML = ''; aList.innerHTML = '';
+            const sorted = data.sort((a,b) => b.requested_date.localeCompare(a.requested_date));
 
-            data.sort((a,b) => b.requested_date.localeCompare(a.requested_date)).forEach(b => {
-                const statusTxt = getStatusText(b.status);
+            sorted.forEach(b => {
+                const s = getStatusInfo(b.status);
                 
                 // USER LISTE
                 if (b.user_id === currentUser.id) {
-                    let color = 'text-yellow-500';
-                    if(b.status === 'confirmed') color = 'text-green-500';
-                    if(b.status === 'rejected' || b.status === 'cancelled') color = 'text-red-500';
-
-                    uList.innerHTML += `<div class="p-4 bg-zinc-800 rounded-2xl flex justify-between items-center text-[10px] mb-2 border border-zinc-700">
-                        <span class="font-bold text-zinc-300">${b.requested_date}</span>
-                        <span class="uppercase font-black ${color}">${statusTxt}</span>
+                    uList.innerHTML += `<div class="p-4 bg-zinc-800 rounded-2xl flex flex-col mb-2 border border-zinc-700">
+                        <div class="flex justify-between items-center mb-1 text-[10px]">
+                            <span class="font-bold text-zinc-300">${b.requested_date}</span>
+                            <span class="uppercase font-black ${s.color}">${s.text}</span>
+                        </div>
+                        ${b.reason_user ? `<p class="text-[9px] text-zinc-400 italic">Dein Grund: ${b.reason_user}</p>` : ''}
+                        ${b.reason_admin ? `<p class="text-[9px] text-red-400 font-bold mt-1">Anmerkung Admin: ${b.reason_admin}</p>` : ''}
                     </div>`;
                 }
 
                 // ADMIN LISTE
                 if (currentUser.email === ADMIN_EMAIL) {
                     const isPending = b.status === 'pending';
-                    aList.innerHTML += `<div class="bg-white text-black p-4 rounded-2xl flex justify-between items-center shadow-xl mb-2">
-                        <div class="flex flex-col">
-                            <span class="font-black text-xs leading-none">${b.requested_date}</span>
-                            <span class="text-[8px] uppercase font-bold text-zinc-400 mt-1">${b.store_number} | ${b.display_name}</span>
-                            <span class="text-[7px] font-bold uppercase ${b.status === 'confirmed' ? 'text-green-600' : 'text-zinc-400'}">${statusTxt}</span>
+                    aList.innerHTML += `<div class="bg-white text-black p-4 rounded-2xl flex flex-col shadow-xl mb-2">
+                        <div class="flex justify-between items-center">
+                            <div class="flex flex-col">
+                                <span class="font-black text-xs leading-none">${b.requested_date}</span>
+                                <span class="text-[8px] uppercase font-bold text-zinc-400 mt-1">${b.store_number} | ${b.display_name}</span>
+                            </div>
+                            <div class="flex gap-1">
+                                ${isPending ? `
+                                    <button onclick="updateStatus('${b.id}', 'confirmed')" class="bg-green-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase">Ja</button>
+                                    <button onclick="adminReject('${b.id}')" class="bg-red-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase">Nein</button>
+                                ` : `<span class="text-[8px] text-zinc-300 font-black uppercase pr-2 italic">Erledigt</span>`}
+                            </div>
                         </div>
-                        <div class="flex gap-2">
-                            ${isPending ? `
-                                <button onclick="updateStatus('${b.id}', 'confirmed')" class="bg-green-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase">Ja</button>
-                                <button onclick="updateStatus('${b.id}', 'rejected')" class="bg-red-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase">Nein</button>
-                            ` : `<span class="text-[8px] text-zinc-300 italic font-bold">Fixiert</span>`}
-                        </div>
+                        ${b.reason_user ? `<p class="text-[9px] text-zinc-600 italic mt-2 border-t pt-1">Grund Kunde: ${b.reason_user}</p>` : ''}
+                        ${b.reason_admin ? `<p class="text-[9px] text-red-600 font-bold mt-1 uppercase">Anmerkung: ${b.reason_admin}</p>` : ''}
                     </div>`;
                 }
             });
+        }
+
+        async function adminReject(id) {
+            const note = prompt("Grund für die Ablehnung:");
+            if(note !== null) {
+                await supabaseClient.from('bookings').update({ status: 'rejected', reason_admin: note }).eq('id', id);
+                fetchAndRender();
+            }
         }
 
         async function updateStatus(id, status) { await supabaseClient.from('bookings').update({ status }).eq('id', id); fetchAndRender(); }
