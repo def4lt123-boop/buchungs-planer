@@ -133,12 +133,18 @@
             const check = setInterval(() => { if (typeof supabase !== 'undefined') { clearInterval(check); startApp(); } }, 100);
         });
 
-        // Feiertags-Check (Bundesweit 2024-2026)
+        // Feiertags-Check (Österreich 2024-2027)
+        // Karfreitag und 08.12. bleiben als Arbeitstage offen.
         function isHoliday(dateStr) {
             const holidays = [
-                "2024-01-01", "2024-03-29", "2024-04-01", "2024-05-01", "2024-05-09", "2024-05-20", "2024-10-03", "2024-12-25", "2024-12-26",
-                "2025-01-01", "2025-04-18", "2025-04-21", "2025-05-01", "2025-05-29", "2025-06-09", "2025-10-03", "2025-12-25", "2025-12-26",
-                "2026-01-01", "2026-04-03", "2026-04-06", "2026-05-01", "2026-05-14", "2026-05-25", "2026-10-03", "2026-12-25", "2026-12-26"
+                // 2024
+                "2024-01-01", "2024-01-06", "2024-04-01", "2024-05-01", "2024-05-09", "2024-05-20", "2024-05-30", "2024-08-15", "2024-10-26", "2024-11-01", "2024-12-25", "2024-12-26",
+                // 2025
+                "2025-01-01", "2025-01-06", "2025-04-21", "2025-05-01", "2025-05-29", "2025-06-09", "2025-06-19", "2025-08-15", "2025-10-26", "2025-11-01", "2025-12-25", "2025-12-26",
+                // 2026
+                "2026-01-01", "2026-01-06", "2026-04-06", "2026-05-01", "2026-05-14", "2026-05-25", "2026-06-04", "2026-08-15", "2026-10-26", "2026-11-01", "2026-12-25", "2026-12-26",
+                // 2027
+                "2027-01-01", "2027-01-06", "2027-03-29", "2027-05-01", "2027-05-06", "2027-05-17", "2027-05-27", "2027-08-15", "2027-10-26", "2027-11-01", "2027-12-25", "2027-12-26"
             ];
             return holidays.includes(dateStr);
         }
@@ -238,7 +244,6 @@
                 const b = all.find(x => x.requested_date === dateStr && x.status !== 'rejected');
                 let cls = "day-free", label = "";
                 
-                // Check auf Sonntag, Feiertag oder Vergangenheit
                 const isSun = dayOfWeek === 0;
                 const isHol = isHoliday(dateStr);
 
@@ -298,7 +303,7 @@
         }
 
         function toggleDateSelection(d) { selectedDates = selectedDates.includes(d) ? selectedDates.filter(x => x !== d) : [...selectedDates, d]; updateActionBar(); fetchAndRender(); }
-        function updateActionBar() { const b = document.getElementById('action-bar'), c = selectedDates.length; if (c > 0) { b.classList.add('visible'); document.getElementById('selection-info').innerText = `${c} Tage gewählt`; document.getElementById('admin-actions').classList.toggle('hidden', currentUser.email !== ADMIN_EMAIL); } else { b.classList.remove('visible'); } }
+        function updateActionBar() { const b = document.getElementById('action-bar'), c = selectedDates.length; if (c > 0) { b.classList.add('visible'); document.getElementById('selection-info').innerText = `${c} Tage ausgewählt`; document.getElementById('admin-actions').classList.toggle('hidden', currentUser.email !== ADMIN_EMAIL); } else { b.classList.remove('visible'); } }
         function clearSelection() { selectedDates = []; updateActionBar(); fetchAndRender(); }
         function changeMonth(d) { currentViewDate.setMonth(currentViewDate.getMonth() + d); clearSelection(); }
         function toggleAuthMode() { const s = document.getElementById('signup-fields'); s.classList.toggle('hidden'); document.getElementById('auth-btn-main').innerText = s.classList.contains('hidden') ? 'Login' : 'Registrieren'; }
