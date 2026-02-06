@@ -17,6 +17,17 @@
         .day-disabled { background-color: #3f3f46 !important; color: #71717a !important; cursor: not-allowed !important; opacity: 0.5; pointer-events: none; }
         .day-selected { border: 3px solid #ffffff !important; transform: scale(0.92); box-shadow: 0 0 15px rgba(255,255,255,0.4); z-index: 10; }
         .store-label { font-size: 0.4rem; background: rgba(0,0,0,0.4); width: 100%; text-align: center; padding: 1px 0; font-weight: 900; position: absolute; bottom: 0; border-radius: 0 0 10px 10px; overflow: hidden; white-space: nowrap; }
+        
+        /* --- NEU: CSS-SPERRE FÜR BELEGTE TAGE --- */
+        /* Verhindert das Anklicken von Rot, Blau und Gelb nur im Hauptkalender */
+        #calendar-grid .day-busy, 
+        #calendar-grid .day-vacation, 
+        #calendar-grid .day-pending { 
+            pointer-events: none !important; 
+            cursor: not-allowed !important;
+        }
+        /* ---------------------------------------- */
+
         #action-bar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translate(-50%, 150%); position: fixed; bottom: 1.5rem; left: 50%; z-index: 100; }
         #action-bar.visible { transform: translate(-50%, 0); }
         * { user-select: none; -webkit-user-select: none; }
@@ -78,6 +89,7 @@
                     <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div class="text-red-900">So</div>
                 </div>
                 <div id="calendar-grid" class="day-grid"></div>
+                <p class="text-[7px] text-zinc-500 mt-2 text-center uppercase font-bold italic">Belegte Tage können nicht ausgewählt werden.</p>
             </section>
 
             <div id="admin-panel" class="hidden space-y-6 mb-12">
@@ -101,7 +113,7 @@
                 <div class="bg-zinc-800/50 p-6 rounded-[2.5rem] border border-zinc-700">
                     <h3 class="text-[10px] font-black text-zinc-300 uppercase mb-4 text-center tracking-widest">🏛️ Admin Archiv (Alle Tage)</h3>
                     <div id="admin-calendar-grid" class="day-grid"></div>
-                    <p class="text-[7px] text-zinc-500 mt-3 text-center uppercase font-bold">In diesem Kalender ist die Vergangenheit sichtbar.</p>
+                    <p class="text-[7px] text-zinc-500 mt-3 text-center uppercase font-bold italic">Hier kannst du als Admin alle Tage anklicken (löschen/ändern).</p>
                 </div>
             </div>
         </div>
@@ -172,7 +184,6 @@
             fetchAndRender();
         }
 
-        // --- ARBEITSFREIE FEIERTAGE Ö (8.12. ERLAUBT) ---
         function isAustrianHoliday(date) {
             const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
             const holidays = ['1.1.', '6.1.', '1.5.', '15.8.', '26.10.', '1.11.', '25.12.', '26.12.']; 
@@ -305,45 +316,4 @@
             }
             data.filter(x => x.user_id === currentUser.id).forEach(b => {
                 uL.innerHTML += `<div class="p-4 bg-zinc-800/30 rounded-2xl mb-2 flex justify-between items-center text-[9px] font-bold border border-zinc-800">
-                    <div>${b.requested_date} (Fil. ${b.store_number})</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
-            });
-        }
-
-        async function processRequest(id, status, email, date) {
-            await supabaseClient.from('bookings').update({ status }).eq('id', id);
-            if (email && status === 'confirmed') {
-                emailjs.init(EJS_PUBLIC_KEY);
-                emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email: email, status_text: 'BESTÄTIGT', date: date });
-            }
-            fetchAndRender();
-        }
-
-        async function submitAdminAction(type) {
-            let inserts = [];
-            if (type === 'direkt') {
-                const f = prompt("Filiale:"); if (!f) return;
-                inserts = selectedDates.map(d => ({ requested_date: d, status: 'confirmed', store_number: f, display_name: 'Admin', user_id: currentUser.id, user_email: currentUser.email }));
-            } else if (type === 'urlaub') {
-                inserts = selectedDates.map(d => ({ requested_date: d, status: 'vacation', store_number: 'URLAUB', display_name: 'Admin', user_id: currentUser.id, user_email: currentUser.email }));
-            } else if (type === 'frei') {
-                await supabaseClient.from('bookings').delete().in('requested_date', selectedDates);
-            }
-            if (inserts.length) await supabaseClient.from('bookings').insert(inserts);
-            clearSelection();
-        }
-
-        async function submitSelection() {
-            const r = prompt("Nachricht (optional):");
-            const { error } = await supabaseClient.from('bookings').insert(selectedDates.map(d => ({ 
-                user_id: currentUser.id, requested_date: d, display_name: userProfile.display_name, store_number: userProfile.store_number, user_email: currentUser.email, reason_user: r, status: 'pending' 
-            })));
-            if (!error) { 
-                emailjs.init(EJS_PUBLIC_KEY);
-                emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" });
-                alert("Anfrage gesendet!"); clearSelection();
-            }
-        }
-    </script>
-</body>
-</html>
-
+                    <div>${b.requested_date} (Fil. ${b.store_number})</div><div class="uppercase text-yellow-500">${b.status
