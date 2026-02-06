@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Springerplan Turbo</title>
+    <title>Springerplan Admin Fix</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -41,7 +41,7 @@
         <div id="error-display" class="hidden py-20 text-center text-red-500 px-10">
             <p class="font-bold">FEHLER BEIM LADEN</p>
             <p id="error-msg" class="text-[10px] mt-2 text-zinc-500"></p>
-            <button onclick="location.reload()" class="mt-5 text-white underline">Neu laden</button>
+            <button onclick="handleLogout()" class="mt-5 text-white underline bg-zinc-800 px-4 py-2 rounded">Notfall Logout</button>
         </div>
 
         <div id="auth-section" class="hidden py-10 text-center">
@@ -87,6 +87,11 @@
                     <h3 class="text-[10px] font-black text-yellow-500 uppercase mb-4 text-center">📅 Offene Anfragen</h3>
                     <div id="admin-list" class="space-y-3"></div>
                 </div>
+                
+                 <div class="bg-blue-600/10 p-5 rounded-[2rem] border border-blue-500/20">
+                    <h3 class="text-[10px] font-black text-blue-400 uppercase mb-4 text-center">👤 Warten auf Freigabe</h3>
+                    <div id="user-approval-list" class="space-y-3 text-center text-[9px] text-zinc-500">Keine neuen User</div>
+                </div>
             </div>
 
             <section>
@@ -123,7 +128,6 @@
 
         let supabaseClient, currentUser = null, userProfile = null, currentViewDate = new Date(), selectedDates = [];
 
-        // Sofortstart ohne langes Intervall
         window.onload = () => {
             if (typeof supabase !== 'undefined') initApp();
             else document.getElementById('error-msg').innerText = "Supabase CDN nicht erreichbar.";
@@ -136,9 +140,27 @@
                 currentUser = session?.user ?? null;
                 
                 if (currentUser) {
-                    const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+                    // FIX: .maybeSingle() statt .single(), um Absturz bei fehlendem Profil zu verhindern
+                    let { data, error } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
+                    
+                    // Admin Notfall-Bypass: Wenn kein Profil da ist, aber es der Admin ist -> Fake Profil erstellen
+                    if (!data && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                        console.warn("Admin-Profil fehlt in DB - nutze temporäres Profil.");
+                        data = { display_name: "MASTER ADMIN", store_number: "ZENTRALE", is_approved: true };
+                        error = null; 
+                    }
+
                     if (error) throw error;
                     userProfile = data;
+
+                    // Prüfen ob User genehmigt ist
+                    if (!userProfile?.is_approved && currentUser.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+                         alert("Dein Account ist noch nicht freigeschaltet.");
+                         await supabaseClient.auth.signOut();
+                         location.reload();
+                         return;
+                    }
+
                     showSection('main-section');
                     updateUI();
                 } else {
@@ -148,7 +170,7 @@
                 console.error(err);
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('error-display').classList.remove('hidden');
-                document.getElementById('error-msg').innerText = err.message;
+                document.getElementById('error-msg').innerText = err.message + " (Init Fehler)";
             }
         }
 
@@ -170,7 +192,10 @@
         async function fetchAndRender() {
             const { data: b } = await supabaseClient.from('bookings').select('*');
             renderCalendar('calendar-grid', b || [], false); 
-            if (currentUser.email === ADMIN_EMAIL) renderCalendar('admin-calendar-grid', b || [], true);
+            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                renderCalendar('admin-calendar-grid', b || [], true);
+                renderUserApproval(); // User Freigabe Liste laden
+            }
             renderLists(b || []);
         }
 
@@ -195,7 +220,6 @@
                 
                 let cls = "day-free", label = "", disabled = false;
                 
-                // Wochenenden/Vergangenheit für User sperren
                 if (!isAdminView && (dateObj < today || dateObj.getDay() === 0)) {
                     disabled = true; cls = "day-disabled";
                 }
@@ -212,12 +236,32 @@
                     <span>${d}</span>${label ? `<span class="store-label">${label}</span>` : ''}</div>`;
             }
         }
+        
+        // --- ADMIN: User Approval Funktion ---
+        async function renderUserApproval() {
+            const list = document.getElementById('user-approval-list');
+            const { data: users } = await supabaseClient.from('profiles').select('*').eq('is_approved', false);
+            if (!users || users.length === 0) { list.innerHTML = '<p class="text-[9px] text-zinc-600">Keine neuen User</p>'; return; }
+            list.innerHTML = '';
+            users.forEach(u => {
+                list.innerHTML += `<div class="bg-white text-black p-3 rounded-xl flex justify-between items-center mb-2">
+                    <div class="text-left font-black text-[8px]">${u.display_name}<br><span class="font-normal">Filiale ${u.store_number}</span></div>
+                    <button onclick="approveUser('${u.id}', '${u.email}')" class="bg-blue-600 text-white px-3 py-2 rounded-lg font-black uppercase text-[7px]">OK</button>
+                </div>`;
+            });
+        }
+
+        async function approveUser(uid, email) {
+            await supabaseClient.from('profiles').update({ is_approved: true }).eq('id', uid);
+            // Optional: Email senden
+            alert("Nutzer freigeschaltet!"); fetchAndRender();
+        }
+        // -------------------------------------
 
         function toggleDateSelection(d) {
             if(selectedDates.includes(d)) selectedDates = selectedDates.filter(x => x !== d);
             else selectedDates.push(d);
             updateActionBar(); 
-            // Hier rendern wir nur den Kalender neu, ohne die DB zu fragen (spart Zeit!)
             const { data: b } = supabaseClient.from('bookings').select('*').then(({data}) => {
                 renderCalendar('calendar-grid', data || [], false);
             });
@@ -227,7 +271,7 @@
             const b = document.getElementById('action-bar'), c = selectedDates.length; 
             b.classList.toggle('visible', c > 0); 
             document.getElementById('selection-info').innerText = `${c} Tage gewählt`; 
-            document.getElementById('admin-actions').classList.toggle('hidden', currentUser.email !== ADMIN_EMAIL); 
+            document.getElementById('admin-actions').classList.toggle('hidden', currentUser.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()); 
         }
 
         async function handleAuthAction() {
@@ -256,7 +300,7 @@
             const uL = document.getElementById('booking-list'), aL = document.getElementById('admin-list');
             uL.innerHTML = '';
             const pending = data.filter(x => x.status === 'pending');
-            if (currentUser.email === ADMIN_EMAIL) {
+            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
                 aL.innerHTML = pending.length ? '' : '<p class="text-[9px] text-zinc-600">Keine Anfragen</p>';
                 pending.forEach(b => {
                     aL.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold">
