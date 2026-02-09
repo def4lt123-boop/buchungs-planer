@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo</title>
+    <title>Springerplan made by Flo - V3.3</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -57,14 +57,14 @@
                 </div>
 
                 <div class="bg-zinc-900 p-3 rounded-xl border border-zinc-700">
-                    <p class="text-[9px] text-zinc-500 uppercase font-bold mb-1">Info vom User (Optional)</p>
+                    <p class="text-[9px] text-zinc-500 uppercase font-bold mb-1">Buchungsgrund (optional)</p>
                     <p id="modal-reason-user" class="text-xs text-white italic">Keine Info</p>
                 </div>
 
-                <div id="admin-note-area" class="bg-zinc-900 p-3 rounded-xl border border-zinc-700 hidden">
-                    <p class="text-[9px] text-zinc-500 uppercase font-bold mb-1">Admin Notiz (Intern)</p>
-                    <textarea id="modal-reason-admin" class="w-full bg-zinc-800 text-white text-xs p-2 rounded-lg outline-none" rows="2" placeholder="Notiz eingeben..."></textarea>
-                    <button id="btn-save-note" onclick="saveAdminNote()" class="w-full mt-2 bg-yellow-500 text-black text-[9px] font-black py-2 rounded-lg uppercase">Speichern</button>
+                <div id="admin-note-area" class="bg-zinc-900 p-3 rounded-xl border border-zinc-700">
+                    <p class="text-[9px] text-zinc-500 uppercase font-bold mb-1">Anmerkung</p>
+                    <textarea id="modal-reason-admin" class="w-full bg-zinc-800 text-white text-xs p-2 rounded-lg outline-none" rows="2" placeholder="Noch keine Anmerkung vorhanden..."></textarea>
+                    <button id="btn-save-note" onclick="saveAdminNote()" class="hidden w-full mt-2 bg-yellow-500 text-black text-[9px] font-black py-2 rounded-lg uppercase">Speichern</button>
                 </div>
             </div>
         </div>
@@ -183,7 +183,6 @@
         const ADMIN_EMAIL = 'def4lt123@gmail.com'; 
         const MASTER_REG_CODE = "FLO2026";
         
-        // EmailJS
         const EJS_SERVICE = "service_z1cwhnt";
         const EJS_USER_TEMPLATE = "template_22cjt73";
         const EJS_ADMIN_TEMPLATE = "template_avultfe";
@@ -194,7 +193,6 @@
         let selectedDates = [];
         let currentModalBookingId = null;
 
-        // HELPER: Button Loading
         function setBtnLoading(btnId, isLoading, loadingText = "") {
             const btn = document.getElementById(btnId);
             if (!btn) return;
@@ -218,7 +216,6 @@
                 
                 if (currentUser) {
                     let { data, error } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
-                    
                     if (!data && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
                         data = { id: currentUser.id, email: currentUser.email, display_name: "Flo", store_number: "Springer", is_approved: true };
                     }
@@ -260,10 +257,9 @@
 
         async function fetchAndRender() {
             const { data: bookings } = await supabaseClient.from('bookings').select('*');
-            renderCalendar('calendar-grid', bookings || [], false); // Normaler Kalender
-            
+            renderCalendar('calendar-grid', bookings || [], false); 
             if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                renderCalendar('admin-calendar-grid', bookings || [], true); // Admin-Lösch-Kalender
+                renderCalendar('admin-calendar-grid', bookings || [], true);
                 renderUserApproval();
             }
             renderLists(bookings || []);
@@ -303,22 +299,11 @@
             try {
                 let { data } = await supabaseClient.from('profiles').select('admin_status').eq('id', currentUser.id).maybeSingle();
                 const newStatus = (data && data.admin_status === type) ? null : type;
-                
-                // Fix: Wir geben hier die ID mit für den Schema-Cache
-                const { error } = await supabaseClient.from('profiles').upsert({ 
-                    id: currentUser.id, 
-                    email: currentUser.email,
-                    admin_status: newStatus 
-                }, { onConflict: 'id' });
-
-                if (error) throw error;
+                await supabaseClient.from('profiles').upsert({ id: currentUser.id, email: currentUser.email, admin_status: newStatus }, { onConflict: 'id' });
                 await loadGlobalStatus();
-            } catch (err) {
-                alert("Fehler: " + err.message);
-            }
+            } catch (err) { alert("Fehler: " + err.message); }
         }
 
-        // Feiertage Österreich
         function isAustrianHoliday(date) {
             const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
             const fixed = ['1.1.', '6.1.', '1.5.', '15.8.', '26.10.', '1.11.', '25.12.', '26.12.'];
@@ -332,34 +317,25 @@
 
         function renderCalendar(targetId, allBookings, isArchiveMode) {
             const grid = document.getElementById(targetId);
-            if (!grid) return;
-            grid.innerHTML = '';
+            if (!grid) return; grid.innerHTML = '';
             
             const year = currentViewDate.getFullYear(), month = currentViewDate.getMonth();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const startDay = (new Date(year, month, 1).getDay() + 6) % 7;
             const today = new Date(); today.setHours(0,0,0,0);
             
-            if (targetId === 'calendar-grid') {
-                document.getElementById('month-name').innerText = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(currentViewDate);
-            }
-
+            if (targetId === 'calendar-grid') document.getElementById('month-name').innerText = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(currentViewDate);
+            
             for (let x = 0; x < startDay; x++) grid.innerHTML += `<div></div>`;
-
+            
             for (let d = 1; d <= daysInMonth; d++) {
                 const dateObj = new Date(year, month, d);
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 const b = allBookings.find(x => x.requested_date === dateStr && x.status !== 'rejected');
-                
                 let cls = "day-free", label = "", disabled = false, isBusy = false;
                 
-                // Einschränkungen nur im oberen Kalender
-                if (!isArchiveMode) {
-                    if (dateObj < today || dateObj.getDay() === 0 || isAustrianHoliday(dateObj)) {
-                        disabled = true; cls = "day-disabled";
-                    }
-                }
-
+                if (!isArchiveMode) { if (dateObj < today || dateObj.getDay() === 0 || isAustrianHoliday(dateObj)) { disabled = true; cls = "day-disabled"; } }
+                
                 if (b) {
                     isBusy = true; 
                     if (b.status === 'confirmed') { cls = "day-busy"; label = "Fil. " + b.store_number; }
@@ -367,24 +343,17 @@
                     else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
                     else if (b.status === 'sick') { cls = "day-sick"; label = "KRANK"; }
                 }
-
+                
                 const isSelected = selectedDates.includes(dateStr) ? 'day-selected' : '';
                 const bookingData = b ? JSON.stringify(b).replace(/"/g, '&quot;') : null;
-                
-                // LOGIK KORREKTUR:
-                // Im ArchiveMode (unten) wählen wir IMMER aus, egal ob besetzt oder nicht.
-                // Im normalen Kalender (oben) öffnen wir Details bei Besetzt.
                 let clickAction = '';
-                if (!disabled) {
-                    if (isArchiveMode) {
-                        clickAction = `toggleDateSelection('${dateStr}')`;
-                    } else {
-                        clickAction = (isBusy && bookingData) ? `openModal(${bookingData})` : `toggleDateSelection('${dateStr}')`;
-                    }
+                
+                if (!disabled) { 
+                    if (isArchiveMode) { clickAction = `toggleDateSelection('${dateStr}')`; } 
+                    else { clickAction = (isBusy && bookingData) ? `openModal(${bookingData})` : `toggleDateSelection('${dateStr}')`; } 
                 }
-
-                grid.innerHTML += `<div onclick="${clickAction}" class="calendar-day ${cls} ${isSelected}">
-                    <span>${d}</span>${label ? `<span class="store-label">${label}</span>` : ''}</div>`;
+                
+                grid.innerHTML += `<div onclick="${clickAction}" class="calendar-day ${cls} ${isSelected}"><span>${d}</span>${label ? `<span class="store-label">${label}</span>` : ''}</div>`;
             }
         }
         
@@ -395,20 +364,22 @@
             document.getElementById('modal-reason-user').innerText = b.reason_user || "Keine Angabe";
             
             const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-            const adminArea = document.getElementById('admin-note-area');
+            const adminNoteField = document.getElementById('modal-reason-admin');
+            const saveBtn = document.getElementById('btn-save-note');
+            
+            adminNoteField.value = b.reason_admin || "";
+            
             if (isAdmin) {
-                adminArea.classList.remove('hidden');
-                document.getElementById('modal-reason-admin').value = b.reason_admin || "";
+                adminNoteField.readOnly = false;
+                saveBtn.classList.remove('hidden');
                 currentModalBookingId = b.id;
             } else {
-                adminArea.classList.add('hidden');
+                adminNoteField.readOnly = true;
+                saveBtn.classList.add('hidden');
             }
         }
 
-        function closeModal() {
-            document.getElementById('detail-modal').classList.add('hidden');
-            currentModalBookingId = null;
-        }
+        function closeModal() { document.getElementById('detail-modal').classList.add('hidden'); currentModalBookingId = null; }
 
         async function saveAdminNote() {
             if (!currentModalBookingId) return;
@@ -416,8 +387,7 @@
             setBtnLoading('btn-save-note', true, "");
             await supabaseClient.from('bookings').update({ reason_admin: note }).eq('id', currentModalBookingId);
             setBtnLoading('btn-save-note', false);
-            closeModal();
-            fetchAndRender();
+            closeModal(); fetchAndRender();
         }
 
         async function renderUserApproval() {
@@ -426,32 +396,16 @@
             if (!users || users.length === 0) { list.innerHTML = '<p class="text-[9px] text-zinc-600">Keine neuen User</p>'; return; }
             list.innerHTML = '';
             users.forEach(u => {
-                list.innerHTML += `<div class="bg-white text-black p-3 rounded-xl flex justify-between items-center mb-2">
-                    <div class="text-left font-black text-[8px]">${u.display_name}<br><span class="font-normal">Filiale ${u.store_number}</span></div>
-                    <button onclick="approveUser('${u.id}')" class="bg-blue-600 text-white px-3 py-2 rounded-lg font-black uppercase text-[7px]">OK</button>
-                </div>`;
+                list.innerHTML += `<div class="bg-white text-black p-3 rounded-xl flex justify-between items-center mb-2"><div class="text-left font-black text-[8px]">${u.display_name}<br><span class="font-normal">Filiale ${u.store_number}</span></div><button onclick="approveUser('${u.id}')" class="bg-blue-600 text-white px-3 py-2 rounded-lg font-black uppercase text-[7px]">OK</button></div>`;
             });
         }
 
-        async function approveUser(uid) {
-            await supabaseClient.from('profiles').update({ is_approved: true }).eq('id', uid);
-            fetchAndRender();
-        }
+        async function approveUser(uid) { await supabaseClient.from('profiles').update({ is_approved: true }).eq('id', uid); fetchAndRender(); }
 
         function toggleDateSelection(date) {
-            if (selectedDates.includes(date)) {
-                selectedDates = selectedDates.filter(d => d !== date);
-            } else {
-                selectedDates.push(date);
-            }
+            if (selectedDates.includes(date)) { selectedDates = selectedDates.filter(d => d !== date); } else { selectedDates.push(date); }
             updateActionBar(); 
-            // Beide Kalender neu rendern um Auswahl anzuzeigen
-            supabaseClient.from('bookings').select('*').then(({data}) => {
-                renderCalendar('calendar-grid', data || [], false);
-                if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                    renderCalendar('admin-calendar-grid', data || [], true);
-                }
-            });
+            supabaseClient.from('bookings').select('*').then(({data}) => { renderCalendar('calendar-grid', data || [], false); if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) { renderCalendar('admin-calendar-grid', data || [], true); } });
         }
 
         function updateActionBar() { 
@@ -473,10 +427,8 @@
                     const store = document.getElementById('store_number').value;
                     const code = document.getElementById('reg_code').value;
                     if (code.toUpperCase() !== MASTER_REG_CODE) throw new Error("Code falsch");
-                    
                     const { error } = await supabaseClient.auth.signUp({ email, password, options: { data: { display_name: name, store_number: store } } });
                     if (error) throw error;
-                    
                     emailjs.init(EJS_PUBLIC_KEY);
                     await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: name, store_number: store, date: "NEUE ANMELDUNG", reason: "Wartet auf Freischaltung" });
                     alert("Registriert! Flo muss dich erst freischalten."); location.reload(); 
@@ -484,36 +436,22 @@
             } catch (err) { alert(err.message); setBtnLoading('auth-btn-main', false); }
         }
 
-        function toggleAuthMode() { 
-            const isHidden = document.getElementById('signup-fields').classList.toggle('hidden'); 
-            document.getElementById('toggle-auth-btn').innerText = isHidden ? "Konto erstellen" : "Zum Login";
-            document.getElementById('auth-btn-main').innerText = isHidden ? "Login" : "Registrieren";
-        }
-
+        function toggleAuthMode() { const isHidden = document.getElementById('signup-fields').classList.toggle('hidden'); document.getElementById('toggle-auth-btn').innerText = isHidden ? "Konto erstellen" : "Zum Login"; document.getElementById('auth-btn-main').innerText = isHidden ? "Login" : "Registrieren"; }
         function clearSelection() { selectedDates = []; updateActionBar(); fetchAndRender(); }
         function changeMonth(d) { currentViewDate.setMonth(currentViewDate.getMonth() + d); clearSelection(); }
         async function handleLogout() { await supabaseClient.auth.signOut(); location.reload(); }
 
         function renderLists(data) {
             const uL = document.getElementById('booking-list'), aL = document.getElementById('admin-list');
-            uL.innerHTML = '';
-            const pending = data.filter(x => x.status === 'pending');
-            
+            uL.innerHTML = ''; const pending = data.filter(x => x.status === 'pending');
             if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
                 aL.innerHTML = pending.length ? '' : '<p class="text-[9px] text-zinc-600">Keine Anfragen</p>';
                 pending.forEach(b => {
-                    aL.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold">
-                        <div>${b.requested_date}<br><span class="text-zinc-500">${b.display_name}</span></div>
-                        <div class="flex gap-1">
-                            <button onclick="processRequest(this, '${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button>
-                            <button onclick="processRequest(this, '${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button>
-                        </div></div>`;
+                    aL.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold"><div>${b.requested_date}<br><span class="text-zinc-500">${b.display_name}</span></div><div class="flex gap-1"><button onclick="processRequest(this, '${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button><button onclick="processRequest(this, '${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button></div></div>`;
                 });
             }
-            
             data.filter(x => x.user_id === currentUser.id).sort((a,b) => b.requested_date.localeCompare(a.requested_date)).forEach(b => {
-                uL.innerHTML += `<div onclick='openModal(${JSON.stringify(b)})' class="p-4 bg-zinc-800/30 rounded-2xl flex justify-between items-center text-[9px] font-bold border border-zinc-800 cursor-pointer">
-                    <div>${b.requested_date}</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
+                uL.innerHTML += `<div onclick='openModal(${JSON.stringify(b)})' class="p-4 bg-zinc-800/30 rounded-2xl flex justify-between items-center text-[9px] font-bold border border-zinc-800 cursor-pointer"><div>${b.requested_date}</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
             });
         }
 
@@ -521,27 +459,16 @@
             let reason = status === 'rejected' ? prompt("Ablehnungsgrund (optional):") : null;
             btn.innerText = '..';
             await supabaseClient.from('bookings').update({ status, reason_admin: reason }).eq('id', id);
-            if (email && status === 'confirmed') {
-                emailjs.init(EJS_PUBLIC_KEY);
-                emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email, status_text: 'BESTÄTIGT', date });
-            }
+            if (email && status === 'confirmed') { emailjs.init(EJS_PUBLIC_KEY); emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email, status_text: 'BESTÄTIGT', date }); }
             fetchAndRender();
         }
 
         async function submitAdminAction(type) {
-            const insData = (status, store, display) => selectedDates.map(d => ({ 
-                requested_date: d, status, store_number: store, display_name: display, user_id: currentUser.id, user_email: currentUser.email 
-            }));
-
-            if (type === 'direkt') {
-                const f = prompt("Filiale:"); if (f) await supabaseClient.from('bookings').insert(insData('confirmed', f, 'Admin'));
-            } else if (type === 'urlaub') {
-                await supabaseClient.from('bookings').insert(insData('vacation', 'URLAUB', 'Admin'));
-            } else if (type === 'krank') {
-                await supabaseClient.from('bookings').insert(insData('sick', 'KRANK', 'Admin'));
-            } else if (type === 'frei') {
-                await supabaseClient.from('bookings').delete().in('requested_date', selectedDates);
-            }
+            const insData = (status, store, display) => selectedDates.map(d => ({ requested_date: d, status, store_number: store, display_name: display, user_id: currentUser.id, user_email: currentUser.email }));
+            if (type === 'direkt') { const f = prompt("Filiale:"); if (f) await supabaseClient.from('bookings').insert(insData('confirmed', f, 'Admin')); }
+            else if (type === 'urlaub') { await supabaseClient.from('bookings').insert(insData('vacation', 'URLAUB', 'Admin')); }
+            else if (type === 'krank') { await supabaseClient.from('bookings').insert(insData('sick', 'KRANK', 'Admin')); }
+            else if (type === 'frei') { await supabaseClient.from('bookings').delete().in('requested_date', selectedDates); }
             clearSelection();
         }
 
@@ -549,16 +476,9 @@
             setBtnLoading('btn-submit', true, "...");
             const r = prompt("Optionale Nachricht:");
             if (r === null) { setBtnLoading('btn-submit', false); return; }
-            
-            const ins = selectedDates.map(d => ({ 
-                user_id: currentUser.id, requested_date: d, display_name: userProfile.display_name, store_number: userProfile.store_number, user_email: currentUser.email, reason_user: r, status: 'pending' 
-            }));
+            const ins = selectedDates.map(d => ({ user_id: currentUser.id, requested_date: d, display_name: userProfile.display_name, store_number: userProfile.store_number, user_email: currentUser.email, reason_user: r, status: 'pending' }));
             const { error } = await supabaseClient.from('bookings').insert(ins);
-            if (!error) { 
-                emailjs.init(EJS_PUBLIC_KEY);
-                emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" });
-                alert("Erfolgreich!"); clearSelection();
-            }
+            if (!error) { emailjs.init(EJS_PUBLIC_KEY); emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" }); alert("Erfolgreich!"); clearSelection(); }
             setBtnLoading('btn-submit', false);
         }
     </script>
