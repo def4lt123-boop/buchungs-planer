@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V3.4</title>
+    <title>Springerplan made by Flo - V3.5</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -72,7 +72,7 @@
 
     <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl pb-40 relative">
         
-        <div id="status-banner" class="hidden mb-6 p-4 rounded-2xl text-center shadow-lg animate-pulse border-2">
+        <div id="status-banner" class="hidden mb-6 p-4 rounded-2xl text-center shadow-lg border-2">
             <h2 id="status-headline" class="text-sm font-black uppercase mb-1"></h2>
             <p id="status-subline" class="text-[10px] font-bold opacity-80"></p>
         </div>
@@ -266,28 +266,32 @@
         }
 
         async function loadGlobalStatus() {
+            // Wir suchen das Profil vom Admin, um den Status zu holen
             const { data } = await supabaseClient.from('profiles').select('admin_status').eq('email', ADMIN_EMAIL).maybeSingle();
-            if (data) renderGlobalBanner(data.admin_status);
+            if (data) {
+                renderGlobalBanner(data.admin_status);
+            }
         }
 
         function renderGlobalBanner(status) {
             const banner = document.getElementById('status-banner');
             const h = document.getElementById('status-headline');
             const s = document.getElementById('status-subline');
+            
+            // Buttons im Admin Panel aktualisieren
             const btnSick = document.getElementById('status-sick-state');
             const btnVac = document.getElementById('status-vacation-state');
-            
-            if(btnSick) btnSick.innerText = status === 'sick' ? 'AN' : 'AUS';
-            if(btnVac) btnVac.innerText = status === 'vacation' ? 'AN' : 'AUS';
+            if(btnSick) btnSick.innerText = (status === 'sick') ? 'AN' : 'AUS';
+            if(btnVac) btnVac.innerText = (status === 'vacation') ? 'AN' : 'AUS';
 
             if (status === 'sick') {
                 banner.classList.remove('hidden');
-                banner.className = "mb-6 p-4 rounded-2xl text-center shadow-lg border-2 border-red-500 bg-red-900/20 text-red-500";
+                banner.className = "mb-6 p-4 rounded-2xl text-center shadow-lg border-2 border-red-500 bg-red-900/20 text-red-500 animate-pulse";
                 h.innerText = "Flo befindet sich derzeit im Krankenstand.";
                 s.innerText = "Anfragen werden eventuell erst später bearbeitet.";
             } else if (status === 'vacation') {
                 banner.classList.remove('hidden');
-                banner.className = "mb-6 p-4 rounded-2xl text-center shadow-lg border-2 border-blue-500 bg-blue-900/20 text-blue-400";
+                banner.className = "mb-6 p-4 rounded-2xl text-center shadow-lg border-2 border-blue-500 bg-blue-900/20 text-blue-400 animate-pulse";
                 h.innerText = "Flo ist derzeit im Urlaub.";
                 s.innerText = "Anfragen werden eventuell erst später bearbeitet.";
             } else {
@@ -299,9 +303,15 @@
             try {
                 let { data } = await supabaseClient.from('profiles').select('admin_status').eq('id', currentUser.id).maybeSingle();
                 const newStatus = (data && data.admin_status === type) ? null : type;
-                await supabaseClient.from('profiles').upsert({ id: currentUser.id, email: currentUser.email, admin_status: newStatus }, { onConflict: 'id' });
-                await loadGlobalStatus();
-            } catch (err) { alert("Fehler: " + err.message); }
+                
+                const { error } = await supabaseClient.from('profiles').update({ admin_status: newStatus }).eq('id', currentUser.id);
+                if (error) throw error;
+                
+                // Seite neu laden, um Änderungen global anzuwenden
+                location.reload();
+            } catch (err) { 
+                alert("Fehler: " + err.message); 
+            }
         }
 
         function isAustrianHoliday(date) {
