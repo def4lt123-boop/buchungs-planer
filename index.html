@@ -256,9 +256,12 @@
         }
 
         async function loadGlobalStatus() {
-            // Fix: Wir suchen nach der admin_status Info für den Admin
-            const { data } = await supabaseClient.from('profiles').select('admin_status').eq('email', ADMIN_EMAIL).maybeSingle();
-            renderGlobalBanner(data ? data.admin_status : null);
+            const { data, error } = await supabaseClient
+                .from('profiles')
+                .select('admin_status')
+                .eq('email', ADMIN_EMAIL)
+                .maybeSingle();
+            if (data) renderGlobalBanner(data.admin_status);
         }
 
         function renderGlobalBanner(status) {
@@ -293,13 +296,9 @@
             btnLabel.innerText = "...";
             
             try {
-                // 1. Aktuellen Status holen
                 let { data } = await supabaseClient.from('profiles').select('admin_status').eq('id', currentUser.id).maybeSingle();
-                
-                // 2. Neuen Status bestimmen
                 const newStatus = (data && data.admin_status === type) ? null : type;
                 
-                // 3. UPSERT Fix: Das Profil wird erstellt, falls es nicht existiert
                 const { error } = await supabaseClient.from('profiles').upsert({ 
                     id: currentUser.id, 
                     email: currentUser.email,
@@ -307,7 +306,7 @@
                     display_name: userProfile?.display_name || "Flo",
                     store_number: userProfile?.store_number || "Springer",
                     is_approved: true
-                });
+                }, { onConflict: 'id' });
 
                 if (error) throw error;
                 await loadGlobalStatus();
@@ -371,8 +370,20 @@
         }
         
         function handleDayClick(date, isBusy, bookingData) {
-            if (isBusy && bookingData) {
+            const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+            
+            if (selectedDates.includes(date)) {
+                toggleDateSelection(date);
+                return;
+            }
+
+            if (isBusy && bookingData && !isAdmin) {
                 openModal(bookingData);
+                return;
+            }
+
+            if (isAdmin && isBusy && selectedDates.length === 0) {
+                toggleDateSelection(date);
             } else {
                 toggleDateSelection(date);
             }
@@ -554,7 +565,7 @@
             const { error } = await supabaseClient.from('bookings').insert(ins);
             if (!error) { 
                 emailjs.init(EJS_PUBLIC_KEY);
-                emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" });
+                emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" });
                 alert("Erfolgreich!"); clearSelection();
             }
             setBtnLoading('btn-submit', false);
