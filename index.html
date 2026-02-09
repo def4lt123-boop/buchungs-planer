@@ -206,7 +206,7 @@
                 if (currentUser) {
                     let { data, error } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
                     if (!data && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                        data = { display_name: "Flo", store_number: "Springer", is_approved: true };
+                        data = { id: currentUser.id, email: currentUser.email, display_name: "Flo", store_number: "Springer", is_approved: true };
                     }
                     if (error && !data) throw error;
                     userProfile = data;
@@ -256,8 +256,9 @@
         }
 
         async function loadGlobalStatus() {
+            // Fix: Wir suchen nach der admin_status Info für den Admin
             const { data } = await supabaseClient.from('profiles').select('admin_status').eq('email', ADMIN_EMAIL).maybeSingle();
-            if(data) renderGlobalBanner(data.admin_status);
+            renderGlobalBanner(data ? data.admin_status : null);
         }
 
         function renderGlobalBanner(status) {
@@ -287,28 +288,31 @@
         }
 
         async function toggleGlobalStatus(type) {
-            const btnId = type === 'sick' ? 'btn-toggle-sick' : 'btn-toggle-vacation';
             const btnLabel = document.getElementById(type === 'sick' ? 'status-sick-state' : 'status-vacation-state');
             const originalText = btnLabel.innerText;
-            
             btnLabel.innerText = "...";
             
             try {
-                // Holen
+                // 1. Aktuellen Status holen
                 let { data } = await supabaseClient.from('profiles').select('admin_status').eq('id', currentUser.id).maybeSingle();
-                if (!data) throw new Error("Profil nicht gefunden");
-
-                // Toggeln
-                const newStatus = (data.admin_status === type) ? null : type;
                 
-                // Update
-                const { error } = await supabaseClient.from('profiles').update({ admin_status: newStatus }).eq('id', currentUser.id);
-                if (error) throw error;
+                // 2. Neuen Status bestimmen
+                const newStatus = (data && data.admin_status === type) ? null : type;
+                
+                // 3. UPSERT Fix: Das Profil wird erstellt, falls es nicht existiert
+                const { error } = await supabaseClient.from('profiles').upsert({ 
+                    id: currentUser.id, 
+                    email: currentUser.email,
+                    admin_status: newStatus,
+                    display_name: userProfile?.display_name || "Flo",
+                    store_number: userProfile?.store_number || "Springer",
+                    is_approved: true
+                });
 
-                // UI Update
+                if (error) throw error;
                 await loadGlobalStatus();
             } catch (err) {
-                console.error("Fehler beim Status toggle:", err);
+                console.error("Fehler:", err);
                 alert("Fehler: " + err.message);
                 btnLabel.innerText = originalText;
             }
@@ -433,7 +437,7 @@
             if(selectedDates.includes(d)) selectedDates = selectedDates.filter(x => x !== d);
             else selectedDates.push(d);
             updateActionBar(); 
-            const { data: b } = supabaseClient.from('bookings').select('*').then(({data}) => {
+            supabaseClient.from('bookings').select('*').then(({data}) => {
                 renderCalendar('calendar-grid', data || [], false);
             });
         }
@@ -550,7 +554,7 @@
             const { error } = await supabaseClient.from('bookings').insert(ins);
             if (!error) { 
                 emailjs.init(EJS_PUBLIC_KEY);
-                emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" });
+                emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" });
                 alert("Erfolgreich!"); clearSelection();
             }
             setBtnLoading('btn-submit', false);
