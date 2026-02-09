@@ -35,18 +35,26 @@
 
         #detail-modal { backdrop-filter: blur(5px); }
         
-        /* KORREKTUR: Action Bar Positionierung & Sichtbarkeit */
+        /* --- KORREKTUR ACTION BAR LOGIK --- */
         #action-bar { 
-            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
             position: fixed; 
-            bottom: 2rem; 
+            bottom: -200px; /* Startet weit außerhalb */
             left: 50%; 
-            transform: translate(-50%, 250%); 
-            z-index: 1000; 
-            width: 92%; 
-            max-width: 400px; 
+            transform: translateX(-50%); 
+            z-index: 9999; /* Maximaler Vordergrund */
+            width: 90%;
+            max-width: 400px;
+            opacity: 0;
+            visibility: hidden;
         }
-        #action-bar.visible { transform: translate(-50%, 0); }
+        
+        #action-bar.visible { 
+            bottom: 2rem; 
+            opacity: 1;
+            visibility: visible;
+        }
+        /* ---------------------------------- */
         
         * { user-select: none; -webkit-tap-highlight-color: transparent; }
         input, textarea { user-select: auto !important; }
@@ -238,7 +246,7 @@
                     }
 
                     showSection('main-section');
-                    await loadGlobalStatus(); // Holt den Status vom Admin-Account
+                    await loadGlobalStatus(); 
                     updateUI();
                 } else {
                     showSection('auth-section');
@@ -286,12 +294,10 @@
             const banner = document.getElementById('status-banner');
             const h = document.getElementById('status-headline');
             const s = document.getElementById('status-subline');
-            
             const btnSick = document.getElementById('status-sick-state');
             const btnVac = document.getElementById('status-vacation-state');
             if(btnSick) btnSick.innerText = (status === 'sick' ? 'AN' : 'AUS');
             if(btnVac) btnVac.innerText = (status === 'vacation' ? 'AN' : 'AUS');
-
             if (status === 'sick') {
                 banner.classList.remove('hidden');
                 banner.className = "mb-6 p-4 rounded-2xl text-center shadow-lg border-2 border-red-500 bg-red-900/20 text-red-500 animate-pulse";
@@ -330,24 +336,18 @@
         function renderCalendar(targetId, allBookings, isArchiveMode) {
             const grid = document.getElementById(targetId);
             if (!grid) return; grid.innerHTML = '';
-            
             const year = currentViewDate.getFullYear(), month = currentViewDate.getMonth();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const startDay = (new Date(year, month, 1).getDay() + 6) % 7;
             const today = new Date(); today.setHours(0,0,0,0);
-            
             if (targetId === 'calendar-grid') document.getElementById('month-name').innerText = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(currentViewDate);
-            
             for (let x = 0; x < startDay; x++) grid.innerHTML += `<div></div>`;
-            
             for (let d = 1; d <= daysInMonth; d++) {
                 const dateObj = new Date(year, month, d);
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 const b = allBookings.find(x => x.requested_date === dateStr && x.status !== 'rejected');
                 let cls = "day-free", label = "", disabled = false, isBusy = false;
-                
                 if (!isArchiveMode) { if (dateObj < today || dateObj.getDay() === 0 || isAustrianHoliday(dateObj)) { disabled = true; cls = "day-disabled"; } }
-                
                 if (b) {
                     isBusy = true; 
                     if (b.status === 'confirmed') { cls = "day-busy"; label = "Fil. " + b.store_number; }
@@ -355,16 +355,13 @@
                     else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
                     else if (b.status === 'sick') { cls = "day-sick"; label = "KRANK"; }
                 }
-                
                 const isSelected = selectedDates.includes(dateStr) ? 'day-selected' : '';
                 const bookingData = b ? JSON.stringify(b).replace(/"/g, '&quot;') : null;
                 let clickAction = '';
-                
                 if (!disabled) { 
                     if (isArchiveMode) { clickAction = `toggleDateSelection('${dateStr}')`; } 
                     else { clickAction = (isBusy && bookingData) ? `openModal(${bookingData})` : `toggleDateSelection('${dateStr}')`; } 
                 }
-                
                 grid.innerHTML += `<div onclick="${clickAction}" class="calendar-day ${cls} ${isSelected}"><span>${d}</span>${label ? `<span class="store-label">${label}</span>` : ''}</div>`;
             }
         }
@@ -405,29 +402,26 @@
 
         async function approveUser(uid) { await supabaseClient.from('profiles').update({ is_approved: true }).eq('id', uid); fetchAndRender(); }
 
-        /* KORREKTUR: Direkte UI-Reaktion in toggleDateSelection */
         function toggleDateSelection(date) {
-            if (selectedDates.includes(date)) { 
-                selectedDates = selectedDates.filter(d => d !== date); 
-            } else { 
-                selectedDates.push(date); 
-            }
+            if (selectedDates.includes(date)) { selectedDates = selectedDates.filter(d => d !== date); } else { selectedDates.push(date); }
             updateActionBar(); 
-            // Direktes Re-Rendering ohne kompletten DB-Fetch für bessere Performance
-            fetchAndRender(); 
+            // Direktes Rendering für Geschwindigkeit
+            const grid = document.getElementById('calendar-grid');
+            const days = grid.querySelectorAll('.calendar-day');
+            days.forEach(day => {
+                const dayNum = day.querySelector('span').innerText;
+                const dStr = `${currentViewDate.getFullYear()}-${String(currentViewDate.getMonth() + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                if(selectedDates.includes(dStr)) day.classList.add('day-selected'); else day.classList.remove('day-selected');
+            });
         }
 
-        /* KORREKTUR: Action Bar Logik */
         function updateActionBar() { 
-            const bar = document.getElementById('action-bar');
-            const count = selectedDates.length; 
-            
+            const bar = document.getElementById('action-bar'), count = selectedDates.length; 
             if (count > 0) {
                 bar.classList.add('visible');
             } else {
                 bar.classList.remove('visible');
             }
-            
             document.getElementById('selection-info').innerText = `${count} Tage ausgewählt`; 
             document.getElementById('admin-actions').classList.toggle('hidden', currentUser.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()); 
         }
@@ -440,7 +434,9 @@
                     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
                     if (error) throw error; else location.reload();
                 } else {
-                    const name = document.getElementById('display_name').value, store = document.getElementById('store_number').value, code = document.getElementById('reg_code').value;
+                    const name = document.getElementById('display_name').value;
+                    const store = document.getElementById('store_number').value;
+                    const code = document.getElementById('reg_code').value;
                     if (code.toUpperCase() !== MASTER_REG_CODE) throw new Error("Code falsch");
                     const { error } = await supabaseClient.auth.signUp({ email, password, options: { data: { display_name: name, store_number: store } } });
                     if (error) throw error;
@@ -477,7 +473,7 @@
             if (email) { 
                 emailjs.init(EJS_PUBLIC_KEY); 
                 const statusText = (status === 'confirmed') ? 'BESTÄTIGT' : 'ABGELEHNT';
-                emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email, status_text: statusText, date, admin_note: reason ? `Grund: ${reason}` : '' }); 
+                emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email: email, status_text: statusText, date: date, admin_note: reason ? `Grund: ${reason}` : '' }); 
             }
             fetchAndRender();
         }
