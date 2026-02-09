@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V3.3</title>
+    <title>Springerplan made by Flo - V3.4</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -283,13 +283,13 @@
             if (status === 'sick') {
                 banner.classList.remove('hidden');
                 banner.className = "mb-6 p-4 rounded-2xl text-center shadow-lg border-2 border-red-500 bg-red-900/20 text-red-500";
-                h.innerText = "⚠ ACHTUNG: KRANKENSTAND";
-                s.innerText = "Ich bin aktuell krank. Antworten können dauern.";
+                h.innerText = "Flo befindet sich derzeit im Krankenstand.";
+                s.innerText = "Anfragen werden eventuell erst später bearbeitet.";
             } else if (status === 'vacation') {
                 banner.classList.remove('hidden');
                 banner.className = "mb-6 p-4 rounded-2xl text-center shadow-lg border-2 border-blue-500 bg-blue-900/20 text-blue-400";
-                h.innerText = "✈ URLAUB";
-                s.innerText = "Ich bin im Urlaub. Anfragen werden danach bearbeitet.";
+                h.innerText = "Flo ist derzeit im Urlaub.";
+                s.innerText = "Anfragen werden eventuell erst später bearbeitet.";
             } else {
                 banner.classList.add('hidden');
             }
