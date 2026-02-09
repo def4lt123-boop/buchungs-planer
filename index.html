@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#18181b"> <meta name="mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png"> <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
+    
     <title>Springerplan made by Flo</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,6 +24,23 @@
         .day-selected { border: 3px solid #ffffff !important; transform: scale(0.92); z-index: 10; }
         .store-label { font-size: 0.4rem; background: rgba(0,0,0,0.4); width: 100%; text-align: center; position: absolute; bottom: 0; border-radius: 0 0 10px 10px; pointer-events: none; }
         
+        /* PUNKT 3: LADE-ANIMATION (Spinner) */
+        .spinner {
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 2px solid white;
+            width: 12px;
+            height: 12px;
+            -webkit-animation: spin 1s linear infinite; /* Safari */
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Button Loading State Styles */
+        .btn-loading { opacity: 0.7; cursor: wait !important; pointer-events: none; }
+
         /* CSS-Sperre: Verhindert Klicks auf belegte Tage im Hauptkalender */
         #calendar-grid .day-busy, 
         #calendar-grid .day-vacation, 
@@ -56,7 +79,7 @@
                     <input id="reg_code" type="text" placeholder="Einladungscode" class="w-full p-4 bg-zinc-800 border border-yellow-500/20 rounded-2xl outline-none">
                 </div>
             </div>
-            <button onclick="handleAuthAction()" id="auth-btn-main" class="w-11/12 bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase mt-8">Login</button>
+            <button onclick="handleAuthAction()" id="auth-btn-main" class="w-11/12 bg-yellow-500 text-black py-4 rounded-2xl font-black uppercase mt-8 transition-all">Login</button>
             <button onclick="toggleAuthMode()" id="toggle-auth-btn" class="w-full mt-10 text-zinc-600 text-[10px] uppercase underline">Konto erstellen</button>
         </div>
 
@@ -128,6 +151,20 @@
 
         let supabaseClient, currentUser = null, userProfile = null, currentViewDate = new Date(), selectedDates = [];
 
+        // Helper für Lade-Status auf Buttons
+        function setBtnLoading(btnId, isLoading, loadingText = "") {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            if (isLoading) {
+                btn.dataset.originalText = btn.innerText;
+                btn.innerHTML = `<span class="spinner"></span> ${loadingText}`;
+                btn.classList.add('btn-loading');
+            } else {
+                btn.innerHTML = btn.dataset.originalText;
+                btn.classList.remove('btn-loading');
+            }
+        }
+
         window.onload = () => {
             if (typeof supabase !== 'undefined') initApp();
             else document.getElementById('error-msg').innerText = "Supabase CDN nicht erreichbar.";
@@ -142,7 +179,6 @@
                 if (currentUser) {
                     let { data, error } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
                     
-                    // Admin Notfall-Profil (Flo)
                     if (!data && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
                         data = { display_name: "Flo", store_number: "Springer", is_approved: true };
                         error = null; 
@@ -196,7 +232,6 @@
             renderLists(b || []);
         }
 
-        // --- FEIERTAGSLOGIK ÖSTERREICH (ohne 8.12.) ---
         function isAustrianHoliday(date) {
             const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
             const fixed = ['1.1.', '6.1.', '1.5.', '15.8.', '26.10.', '1.11.', '25.12.', '26.12.'];
@@ -256,14 +291,18 @@
             if (!users || users.length === 0) { list.innerHTML = '<p class="text-[9px] text-zinc-600">Keine neuen User</p>'; return; }
             list.innerHTML = '';
             users.forEach(u => {
+                const btnId = `approve-${u.id}`;
                 list.innerHTML += `<div class="bg-white text-black p-3 rounded-xl flex justify-between items-center mb-2">
                     <div class="text-left font-black text-[8px]">${u.display_name}<br><span class="font-normal">Filiale ${u.store_number}</span></div>
-                    <button onclick="approveUser('${u.id}', '${u.email}')" class="bg-blue-600 text-white px-3 py-2 rounded-lg font-black uppercase text-[7px]">OK</button>
+                    <button id="${btnId}" onclick="approveUser('${u.id}', '${u.email}', '${btnId}')" class="bg-blue-600 text-white px-3 py-2 rounded-lg font-black uppercase text-[7px] transition-all">OK</button>
                 </div>`;
             });
         }
 
-        async function approveUser(uid, email) {
+        async function approveUser(uid, email, btnId) {
+            const btn = document.getElementById(btnId);
+            if(btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.classList.add('btn-loading'); }
+            
             await supabaseClient.from('profiles').update({ is_approved: true }).eq('id', uid);
             alert("Nutzer freigeschaltet!"); fetchAndRender();
         }
@@ -285,19 +324,21 @@
         }
 
         async function handleAuthAction() {
+            setBtnLoading('auth-btn-main', true, "...");
             const e = document.getElementById('email').value, p = document.getElementById('password').value;
-            if (document.getElementById('signup-fields').classList.contains('hidden')) {
-                const { error } = await supabaseClient.auth.signInWithPassword({ email: e, password: p });
-                if (error) alert("Fehler: " + error.message); else location.reload();
-            } else {
-                const n = document.getElementById('display_name').value, s = document.getElementById('store_number').value, c = document.getElementById('reg_code').value;
-                if (c.toUpperCase() !== MASTER_REG_CODE) return alert("Code falsch");
-                
-                const { error } = await supabaseClient.auth.signUp({ email: e, password: p, options: { data: { display_name: n, store_number: s } } });
-                
-                if (error) {
-                    alert(error.message);
+            
+            try {
+                if (document.getElementById('signup-fields').classList.contains('hidden')) {
+                    const { error } = await supabaseClient.auth.signInWithPassword({ email: e, password: p });
+                    if (error) throw error; else location.reload();
                 } else {
+                    const n = document.getElementById('display_name').value, s = document.getElementById('store_number').value, c = document.getElementById('reg_code').value;
+                    if (c.toUpperCase() !== MASTER_REG_CODE) throw new Error("Code falsch");
+                    
+                    const { error } = await supabaseClient.auth.signUp({ email: e, password: p, options: { data: { display_name: n, store_number: s } } });
+                    
+                    if (error) throw error;
+                    
                     emailjs.init(EJS_PUBLIC_KEY);
                     await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { 
                         user_name: n, 
@@ -309,10 +350,12 @@
                     alert("Registriert! Email an Admin gesendet. Warte auf Freischaltung."); 
                     location.reload(); 
                 }
+            } catch (err) {
+                alert("Fehler: " + err.message);
+                setBtnLoading('auth-btn-main', false);
             }
         }
 
-        // Button-Text Logik angepasst
         function toggleAuthMode() { 
             const isHidden = document.getElementById('signup-fields').classList.toggle('hidden'); 
             document.getElementById('toggle-auth-btn').innerText = isHidden ? "Konto erstellen" : "Zum Login";
@@ -330,11 +373,13 @@
             if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
                 aL.innerHTML = pending.length ? '' : '<p class="text-[9px] text-zinc-600">Keine Anfragen</p>';
                 pending.forEach(b => {
+                    const btnIdConf = `conf-${b.id}`;
+                    const btnIdRej = `rej-${b.id}`;
                     aL.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold">
                         <div>${b.requested_date}<br><span class="text-zinc-500">${b.display_name}</span></div>
                         <div class="flex gap-1">
-                            <button onclick="processRequest('${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button>
-                            <button onclick="processRequest('${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button>
+                            <button id="${btnIdConf}" onclick="processRequest(this, '${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg transition-all">✓</button>
+                            <button id="${btnIdRej}" onclick="processRequest(this, '${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg transition-all">X</button>
                         </div></div>`;
                 });
             }
@@ -344,7 +389,12 @@
             });
         }
 
-        async function processRequest(id, status, email, date) {
+        async function processRequest(btn, id, status, email, date) {
+            // Lade-Animation auf dem geklickten Button
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner"></span>';
+            btn.classList.add('btn-loading');
+
             await supabaseClient.from('bookings').update({ status }).eq('id', id);
             if (email && status === 'confirmed') {
                 emailjs.init(EJS_PUBLIC_KEY);
@@ -368,7 +418,11 @@
         }
 
         async function submitSelection() {
+            setBtnLoading('btn-submit', true, "...");
             const r = prompt("Optionale Nachricht:");
+            // Wenn User abbricht, Lade-Status entfernen
+            if (r === null) { setBtnLoading('btn-submit', false); return; }
+
             const ins = selectedDates.map(d => ({ 
                 user_id: currentUser.id, requested_date: d, display_name: userProfile.display_name, store_number: userProfile.store_number, user_email: currentUser.email, reason_user: r, status: 'pending' 
             }));
@@ -378,6 +432,7 @@
                 emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" });
                 alert("Erfolgreich!"); clearSelection();
             }
+            setBtnLoading('btn-submit', false);
         }
     </script>
 </body>
