@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V3.5</title>
+    <title>Springerplan made by Flo - V3.6</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -132,10 +132,10 @@
             <div id="admin-panel" class="hidden space-y-6 mb-12">
                 <div class="grid grid-cols-2 gap-3">
                     <button id="btn-toggle-sick" onclick="toggleGlobalStatus('sick')" class="p-3 rounded-xl bg-zinc-800 border border-red-900/50 text-[9px] font-black uppercase text-red-500 transition-all active:scale-95">
-                        Krankenstand Modus: <span id="status-sick-state">AUS</span>
+                        Krankenstand: <span id="status-sick-state">AUS</span>
                     </button>
                     <button id="btn-toggle-vacation" onclick="toggleGlobalStatus('vacation')" class="p-3 rounded-xl bg-zinc-800 border border-blue-900/50 text-[9px] font-black uppercase text-blue-500 transition-all active:scale-95">
-                        Urlaub Modus: <span id="status-vacation-state">AUS</span>
+                        Urlaub: <span id="status-vacation-state">AUS</span>
                     </button>
                 </div>
 
@@ -228,7 +228,7 @@
                     }
 
                     showSection('main-section');
-                    await loadGlobalStatus();
+                    await loadGlobalStatus(); // Holt den Status vom Admin-Account
                     updateUI();
                 } else {
                     showSection('auth-section');
@@ -266,8 +266,8 @@
         }
 
         async function loadGlobalStatus() {
-            // Wir suchen das Profil vom Admin, um den Status zu holen
-            const { data } = await supabaseClient.from('profiles').select('admin_status').eq('email', ADMIN_EMAIL).maybeSingle();
+            // WICHTIG: Wir holen den Status immer vom Admin-Profil, damit alle ihn sehen
+            const { data, error } = await supabaseClient.from('profiles').select('admin_status').eq('email', ADMIN_EMAIL).maybeSingle();
             if (data) {
                 renderGlobalBanner(data.admin_status);
             }
@@ -278,11 +278,11 @@
             const h = document.getElementById('status-headline');
             const s = document.getElementById('status-subline');
             
-            // Buttons im Admin Panel aktualisieren
+            // UI im Admin-Bereich (Buttons)
             const btnSick = document.getElementById('status-sick-state');
             const btnVac = document.getElementById('status-vacation-state');
-            if(btnSick) btnSick.innerText = (status === 'sick') ? 'AN' : 'AUS';
-            if(btnVac) btnVac.innerText = (status === 'vacation') ? 'AN' : 'AUS';
+            if(btnSick) btnSick.innerText = (status === 'sick' ? 'AN' : 'AUS');
+            if(btnVac) btnVac.innerText = (status === 'vacation' ? 'AN' : 'AUS');
 
             if (status === 'sick') {
                 banner.classList.remove('hidden');
@@ -301,16 +301,20 @@
 
         async function toggleGlobalStatus(type) {
             try {
+                // Den aktuellen Status vom Admin-Profil holen
                 let { data } = await supabaseClient.from('profiles').select('admin_status').eq('id', currentUser.id).maybeSingle();
                 const newStatus = (data && data.admin_status === type) ? null : type;
                 
+                // Update in der DB
                 const { error } = await supabaseClient.from('profiles').update({ admin_status: newStatus }).eq('id', currentUser.id);
-                if (error) throw error;
                 
-                // Seite neu laden, um Änderungen global anzuwenden
-                location.reload();
+                if (error) {
+                    alert("Datenbank-Fehler: " + error.message);
+                } else {
+                    location.reload(); // Sofortiger Refresh
+                }
             } catch (err) { 
-                alert("Fehler: " + err.message); 
+                alert("System-Fehler: " + err.message); 
             }
         }
 
