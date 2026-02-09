@@ -473,7 +473,17 @@
             let reason = status === 'rejected' ? prompt("Ablehnungsgrund (optional):") : null;
             btn.innerText = '..';
             await supabaseClient.from('bookings').update({ status, reason_admin: reason }).eq('id', id);
-            if (email && status === 'confirmed') { emailjs.init(EJS_PUBLIC_KEY); emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email, status_text: 'BESTÄTIGT', date }); }
+            
+            if (email) { 
+                emailjs.init(EJS_PUBLIC_KEY); 
+                const statusText = (status === 'confirmed') ? 'BESTÄTIGT' : 'ABGELEHNT';
+                emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { 
+                    email: email, 
+                    status_text: statusText, 
+                    date: date,
+                    admin_note: reason ? `Grund: ${reason}` : ''
+                }); 
+            }
             fetchAndRender();
         }
 
