@@ -35,7 +35,7 @@
 
         #detail-modal { backdrop-filter: blur(5px); }
         
-        #action-bar { transition: transform 0.3s ease; position: fixed; bottom: 1.5rem; left: 50%; transform: translate(-50%, 150%); z-index: 100; }
+        #action-bar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: fixed; bottom: 1.5rem; left: 50%; transform: translate(-50%, 200%); z-index: 1000; width: 92%; max-width: 400px; }
         #action-bar.visible { transform: translate(-50%, 0); }
         
         * { user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -161,7 +161,7 @@
             </section>
         </div>
 
-        <div id="action-bar" class="w-[92%] max-w-md bg-zinc-800 border border-zinc-700 p-5 rounded-[2.5rem] shadow-2xl">
+        <div id="action-bar" class="bg-zinc-800 border border-zinc-700 p-5 rounded-[2.5rem] shadow-2xl">
             <div id="selection-info" class="text-[9px] text-center font-black uppercase text-yellow-500 mb-4 tracking-widest">0 Tage ausgewählt</div>
             <div class="flex gap-2">
                 <button onclick="clearSelection()" class="bg-zinc-700 text-white px-4 py-3 rounded-2xl text-[9px] font-black flex-1">Abbrechen</button>
@@ -419,12 +419,12 @@
         function toggleDateSelection(date) {
             if (selectedDates.includes(date)) { selectedDates = selectedDates.filter(d => d !== date); } else { selectedDates.push(date); }
             updateActionBar(); 
-            supabaseClient.from('bookings').select('*').then(({data}) => { renderCalendar('calendar-grid', data || [], false); if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) { renderCalendar('admin-calendar-grid', data || [], true); } });
+            fetchAndRender();
         }
 
         function updateActionBar() { 
             const bar = document.getElementById('action-bar'), count = selectedDates.length; 
-            bar.classList.toggle('visible', count > 0); 
+            if (count > 0) bar.classList.add('visible'); else bar.classList.remove('visible');
             document.getElementById('selection-info').innerText = `${count} Tage ausgewählt`; 
             document.getElementById('admin-actions').classList.toggle('hidden', currentUser.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()); 
         }
