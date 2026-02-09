@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V3.6</title>
+    <title>Springerplan made by Flo</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -72,11 +72,6 @@
 
     <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl pb-40 relative">
         
-        <div id="status-banner" class="hidden mb-6 p-4 rounded-2xl text-center shadow-lg border-2">
-            <h2 id="status-headline" class="text-sm font-black uppercase mb-1"></h2>
-            <p id="status-subline" class="text-[10px] font-bold opacity-80"></p>
-        </div>
-
         <div id="loading" class="flex flex-col items-center py-20 text-yellow-500 font-bold animate-pulse text-xs">
             SYSTEM STARTET...
         </div>
@@ -130,15 +125,6 @@
             </section>
 
             <div id="admin-panel" class="hidden space-y-6 mb-12">
-                <div class="grid grid-cols-2 gap-3">
-                    <button id="btn-toggle-sick" onclick="toggleGlobalStatus('sick')" class="p-3 rounded-xl bg-zinc-800 border border-red-900/50 text-[9px] font-black uppercase text-red-500 transition-all active:scale-95">
-                        Krankenstand: <span id="status-sick-state">AUS</span>
-                    </button>
-                    <button id="btn-toggle-vacation" onclick="toggleGlobalStatus('vacation')" class="p-3 rounded-xl bg-zinc-800 border border-blue-900/50 text-[9px] font-black uppercase text-blue-500 transition-all active:scale-95">
-                        Urlaub: <span id="status-vacation-state">AUS</span>
-                    </button>
-                </div>
-
                 <div class="bg-yellow-500/10 p-5 rounded-[2rem] border border-yellow-500/20">
                     <h3 class="text-[10px] font-black text-yellow-500 uppercase mb-4 text-center">📅 Offene Anfragen</h3>
                     <div id="admin-list" class="space-y-3"></div>
@@ -198,7 +184,7 @@
             if (!btn) return;
             if (isLoading) {
                 btn.dataset.originalText = btn.innerText;
-                btn.innerHTML = `<span class="spinner"></span> ${loadingText}`;
+                btn.innerHTML = `<span class=\"spinner\"></span> ${loadingText}`;
                 btn.classList.add('btn-loading');
             } else {
                 btn.innerHTML = btn.dataset.originalText || btn.innerText;
@@ -228,7 +214,6 @@
                     }
 
                     showSection('main-section');
-                    await loadGlobalStatus(); // Holt den Status vom Admin-Account
                     updateUI();
                 } else {
                     showSection('auth-section');
@@ -263,59 +248,6 @@
                 renderUserApproval();
             }
             renderLists(bookings || []);
-        }
-
-        async function loadGlobalStatus() {
-            // WICHTIG: Wir holen den Status immer vom Admin-Profil, damit alle ihn sehen
-            const { data, error } = await supabaseClient.from('profiles').select('admin_status').eq('email', ADMIN_EMAIL).maybeSingle();
-            if (data) {
-                renderGlobalBanner(data.admin_status);
-            }
-        }
-
-        function renderGlobalBanner(status) {
-            const banner = document.getElementById('status-banner');
-            const h = document.getElementById('status-headline');
-            const s = document.getElementById('status-subline');
-            
-            // UI im Admin-Bereich (Buttons)
-            const btnSick = document.getElementById('status-sick-state');
-            const btnVac = document.getElementById('status-vacation-state');
-            if(btnSick) btnSick.innerText = (status === 'sick' ? 'AN' : 'AUS');
-            if(btnVac) btnVac.innerText = (status === 'vacation' ? 'AN' : 'AUS');
-
-            if (status === 'sick') {
-                banner.classList.remove('hidden');
-                banner.className = "mb-6 p-4 rounded-2xl text-center shadow-lg border-2 border-red-500 bg-red-900/20 text-red-500 animate-pulse";
-                h.innerText = "Flo befindet sich derzeit im Krankenstand.";
-                s.innerText = "Anfragen werden eventuell erst später bearbeitet.";
-            } else if (status === 'vacation') {
-                banner.classList.remove('hidden');
-                banner.className = "mb-6 p-4 rounded-2xl text-center shadow-lg border-2 border-blue-500 bg-blue-900/20 text-blue-400 animate-pulse";
-                h.innerText = "Flo ist derzeit im Urlaub.";
-                s.innerText = "Anfragen werden eventuell erst später bearbeitet.";
-            } else {
-                banner.classList.add('hidden');
-            }
-        }
-
-        async function toggleGlobalStatus(type) {
-            try {
-                // Den aktuellen Status vom Admin-Profil holen
-                let { data } = await supabaseClient.from('profiles').select('admin_status').eq('id', currentUser.id).maybeSingle();
-                const newStatus = (data && data.admin_status === type) ? null : type;
-                
-                // Update in der DB
-                const { error } = await supabaseClient.from('profiles').update({ admin_status: newStatus }).eq('id', currentUser.id);
-                
-                if (error) {
-                    alert("Datenbank-Fehler: " + error.message);
-                } else {
-                    location.reload(); // Sofortiger Refresh
-                }
-            } catch (err) { 
-                alert("System-Fehler: " + err.message); 
-            }
         }
 
         function isAustrianHoliday(date) {
@@ -367,7 +299,7 @@
                     else { clickAction = (isBusy && bookingData) ? `openModal(${bookingData})` : `toggleDateSelection('${dateStr}')`; } 
                 }
                 
-                grid.innerHTML += `<div onclick="${clickAction}" class="calendar-day ${cls} ${isSelected}"><span>${d}</span>${label ? `<span class="store-label">${label}</span>` : ''}</div>`;
+                grid.innerHTML += `<div onclick=\"${clickAction}\" class=\"calendar-day ${cls} ${isSelected}\"><span>${d}</span>${label ? `<span class=\"store-label\">${label}</span>` : ''}</div>`;
             }
         }
         
@@ -407,10 +339,10 @@
         async function renderUserApproval() {
             const list = document.getElementById('user-approval-list');
             const { data: users } = await supabaseClient.from('profiles').select('*').eq('is_approved', false);
-            if (!users || users.length === 0) { list.innerHTML = '<p class="text-[9px] text-zinc-600">Keine neuen User</p>'; return; }
+            if (!users || users.length === 0) { list.innerHTML = '<p class=\"text-[9px] text-zinc-600\">Keine neuen User</p>'; return; }
             list.innerHTML = '';
             users.forEach(u => {
-                list.innerHTML += `<div class="bg-white text-black p-3 rounded-xl flex justify-between items-center mb-2"><div class="text-left font-black text-[8px]">${u.display_name}<br><span class="font-normal">Filiale ${u.store_number}</span></div><button onclick="approveUser('${u.id}')" class="bg-blue-600 text-white px-3 py-2 rounded-lg font-black uppercase text-[7px]">OK</button></div>`;
+                list.innerHTML += `<div class=\"bg-white text-black p-3 rounded-xl flex justify-between items-center mb-2\"><div class=\"text-left font-black text-[8px]\">${u.display_name}<br><span class=\"font-normal\">Filiale ${u.store_number}</span></div><button onclick=\"approveUser('${u.id}')\" class=\"bg-blue-600 text-white px-3 py-2 rounded-lg font-black uppercase text-[7px]\">OK</button></div>`;
             });
         }
 
@@ -459,13 +391,13 @@
             const uL = document.getElementById('booking-list'), aL = document.getElementById('admin-list');
             uL.innerHTML = ''; const pending = data.filter(x => x.status === 'pending');
             if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                aL.innerHTML = pending.length ? '' : '<p class="text-[9px] text-zinc-600">Keine Anfragen</p>';
+                aL.innerHTML = pending.length ? '' : '<p class=\"text-[9px] text-zinc-600\">Keine Anfragen</p>';
                 pending.forEach(b => {
-                    aL.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold"><div>${b.requested_date}<br><span class="text-zinc-500">${b.display_name}</span></div><div class="flex gap-1"><button onclick="processRequest(this, '${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button><button onclick="processRequest(this, '${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button></div></div>`;
+                    aL.innerHTML += `<div class=\"bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold\"><div>${b.requested_date}<br><span class=\"text-zinc-500\">${b.display_name}</span></div><div class=\"flex gap-1\"><button onclick=\"processRequest(this, '${b.id}','confirmed','${b.user_email}','${b.requested_date}')\" class=\"bg-green-600 text-white px-3 py-2 rounded-lg\">✓</button><button onclick=\"processRequest(this, '${b.id}','rejected','${b.user_email}','${b.requested_date}')\" class=\"bg-red-600 text-white px-3 py-2 rounded-lg\">X</button></div></div>`;
                 });
             }
             data.filter(x => x.user_id === currentUser.id).sort((a,b) => b.requested_date.localeCompare(a.requested_date)).forEach(b => {
-                uL.innerHTML += `<div onclick='openModal(${JSON.stringify(b)})' class="p-4 bg-zinc-800/30 rounded-2xl flex justify-between items-center text-[9px] font-bold border border-zinc-800 cursor-pointer"><div>${b.requested_date}</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
+                uL.innerHTML += `<div onclick='openModal(${JSON.stringify(b)})' class=\"p-4 bg-zinc-800/30 rounded-2xl flex justify-between items-center text-[9px] font-bold border border-zinc-800 cursor-pointer\"><div>${b.requested_date}</div><div class=\"uppercase text-yellow-500\">${b.status}</div></div>`;
             });
         }
 
@@ -473,7 +405,18 @@
             let reason = status === 'rejected' ? prompt("Ablehnungsgrund (optional):") : null;
             btn.innerText = '..';
             await supabaseClient.from('bookings').update({ status, reason_admin: reason }).eq('id', id);
-            if (email && status === 'confirmed') { emailjs.init(EJS_PUBLIC_KEY); emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email, status_text: 'BESTÄTIGT', date }); }
+            
+            // Email-Logik für Zusage UND Absage ergänzt
+            if (email) { 
+                emailjs.init(EJS_PUBLIC_KEY); 
+                const statusText = (status === 'confirmed') ? 'BESTÄTIGT' : 'ABGELEHNT';
+                emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { 
+                    email: email, 
+                    status_text: statusText, 
+                    date: date,
+                    admin_note: reason ? `Grund: ${reason}` : ''
+                }); 
+            }
             fetchAndRender();
         }
 
