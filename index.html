@@ -35,7 +35,17 @@
 
         #detail-modal { backdrop-filter: blur(5px); }
         
-        #action-bar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: fixed; bottom: 1.5rem; left: 50%; transform: translate(-50%, 200%); z-index: 1000; width: 92%; max-width: 400px; }
+        /* KORREKTUR: Action Bar Positionierung & Sichtbarkeit */
+        #action-bar { 
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+            position: fixed; 
+            bottom: 2rem; 
+            left: 50%; 
+            transform: translate(-50%, 250%); 
+            z-index: 1000; 
+            width: 92%; 
+            max-width: 400px; 
+        }
         #action-bar.visible { transform: translate(-50%, 0); }
         
         * { user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -266,7 +276,6 @@
         }
 
         async function loadGlobalStatus() {
-            // WICHTIG: Wir holen den Status immer vom Admin-Profil, damit alle ihn sehen
             const { data, error } = await supabaseClient.from('profiles').select('admin_status').eq('email', ADMIN_EMAIL).maybeSingle();
             if (data) {
                 renderGlobalBanner(data.admin_status);
@@ -278,7 +287,6 @@
             const h = document.getElementById('status-headline');
             const s = document.getElementById('status-subline');
             
-            // UI im Admin-Bereich (Buttons)
             const btnSick = document.getElementById('status-sick-state');
             const btnVac = document.getElementById('status-vacation-state');
             if(btnSick) btnSick.innerText = (status === 'sick' ? 'AN' : 'AUS');
@@ -301,21 +309,11 @@
 
         async function toggleGlobalStatus(type) {
             try {
-                // Den aktuellen Status vom Admin-Profil holen
                 let { data } = await supabaseClient.from('profiles').select('admin_status').eq('id', currentUser.id).maybeSingle();
                 const newStatus = (data && data.admin_status === type) ? null : type;
-                
-                // Update in der DB
                 const { error } = await supabaseClient.from('profiles').update({ admin_status: newStatus }).eq('id', currentUser.id);
-                
-                if (error) {
-                    alert("Datenbank-Fehler: " + error.message);
-                } else {
-                    location.reload(); // Sofortiger Refresh
-                }
-            } catch (err) { 
-                alert("System-Fehler: " + err.message); 
-            }
+                if (error) alert("Datenbank-Fehler: " + error.message); else location.reload();
+            } catch (err) { alert("System-Fehler: " + err.message); }
         }
 
         function isAustrianHoliday(date) {
@@ -376,21 +374,12 @@
             document.getElementById('modal-date').innerText = b.requested_date;
             document.getElementById('modal-user').innerText = `${b.display_name} (${b.status})`;
             document.getElementById('modal-reason-user').innerText = b.reason_user || "Keine Angabe";
-            
             const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
             const adminNoteField = document.getElementById('modal-reason-admin');
             const saveBtn = document.getElementById('btn-save-note');
-            
             adminNoteField.value = b.reason_admin || "";
-            
-            if (isAdmin) {
-                adminNoteField.readOnly = false;
-                saveBtn.classList.remove('hidden');
-                currentModalBookingId = b.id;
-            } else {
-                adminNoteField.readOnly = true;
-                saveBtn.classList.add('hidden');
-            }
+            if (isAdmin) { adminNoteField.readOnly = false; saveBtn.classList.remove('hidden'); currentModalBookingId = b.id; }
+            else { adminNoteField.readOnly = true; saveBtn.classList.add('hidden'); }
         }
 
         function closeModal() { document.getElementById('detail-modal').classList.add('hidden'); currentModalBookingId = null; }
@@ -416,15 +405,29 @@
 
         async function approveUser(uid) { await supabaseClient.from('profiles').update({ is_approved: true }).eq('id', uid); fetchAndRender(); }
 
+        /* KORREKTUR: Direkte UI-Reaktion in toggleDateSelection */
         function toggleDateSelection(date) {
-            if (selectedDates.includes(date)) { selectedDates = selectedDates.filter(d => d !== date); } else { selectedDates.push(date); }
+            if (selectedDates.includes(date)) { 
+                selectedDates = selectedDates.filter(d => d !== date); 
+            } else { 
+                selectedDates.push(date); 
+            }
             updateActionBar(); 
-            fetchAndRender();
+            // Direktes Re-Rendering ohne kompletten DB-Fetch für bessere Performance
+            fetchAndRender(); 
         }
 
+        /* KORREKTUR: Action Bar Logik */
         function updateActionBar() { 
-            const bar = document.getElementById('action-bar'), count = selectedDates.length; 
-            if (count > 0) bar.classList.add('visible'); else bar.classList.remove('visible');
+            const bar = document.getElementById('action-bar');
+            const count = selectedDates.length; 
+            
+            if (count > 0) {
+                bar.classList.add('visible');
+            } else {
+                bar.classList.remove('visible');
+            }
+            
             document.getElementById('selection-info').innerText = `${count} Tage ausgewählt`; 
             document.getElementById('admin-actions').classList.toggle('hidden', currentUser.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()); 
         }
@@ -437,9 +440,7 @@
                     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
                     if (error) throw error; else location.reload();
                 } else {
-                    const name = document.getElementById('display_name').value;
-                    const store = document.getElementById('store_number').value;
-                    const code = document.getElementById('reg_code').value;
+                    const name = document.getElementById('display_name').value, store = document.getElementById('store_number').value, code = document.getElementById('reg_code').value;
                     if (code.toUpperCase() !== MASTER_REG_CODE) throw new Error("Code falsch");
                     const { error } = await supabaseClient.auth.signUp({ email, password, options: { data: { display_name: name, store_number: store } } });
                     if (error) throw error;
@@ -473,16 +474,10 @@
             let reason = status === 'rejected' ? prompt("Ablehnungsgrund (optional):") : null;
             btn.innerText = '..';
             await supabaseClient.from('bookings').update({ status, reason_admin: reason }).eq('id', id);
-            
             if (email) { 
                 emailjs.init(EJS_PUBLIC_KEY); 
                 const statusText = (status === 'confirmed') ? 'BESTÄTIGT' : 'ABGELEHNT';
-                emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { 
-                    email: email, 
-                    status_text: statusText, 
-                    date: date,
-                    admin_note: reason ? `Grund: ${reason}` : ''
-                }); 
+                emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email, status_text: statusText, date, admin_note: reason ? `Grund: ${reason}` : '' }); 
             }
             fetchAndRender();
         }
