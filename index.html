@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -11,13 +11,13 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V3.6</title>
+    <title>Springerplan made by Flo - V3.7 (Email Update)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <style>
         .day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-        .calendar-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; font-size: 0.7rem; font-weight: bold; cursor: pointer; position: relative; transition: transform 0.1s ease; border: 2px solid transparent; }
+        .calendar-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; font-size: 0.7rem; font-weight: bold; cursor: pointer; position: relative; transition: transform 0.1s ease; border: 2px solid transparent; touch-action: manipulation; }
         
         .day-free { background-color: #22c55e; color: white; } 
         .day-busy { background-color: #ef4444; color: white; } 
@@ -35,8 +35,26 @@
 
         #detail-modal { backdrop-filter: blur(5px); }
         
-        #action-bar { transition: transform 0.3s ease; position: fixed; bottom: 1.5rem; left: 50%; transform: translate(-50%, 150%); z-index: 100; }
-        #action-bar.visible { transform: translate(-50%, 0); }
+        /* --- ACTION BAR FIX --- */
+        #action-bar { 
+            position: fixed; 
+            bottom: calc(20px + env(safe-area-inset-bottom)); 
+            left: 50%; 
+            transform: translate(-50%, 200%); 
+            z-index: 9999; 
+            width: 92%; 
+            max-width: 400px;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+        #action-bar.visible { 
+            transform: translate(-50%, 0); 
+            opacity: 1;
+            pointer-events: auto;
+        }
+        /* Padding für Container, damit nichts verdeckt wird */
+        #app-container { padding-bottom: 120px !important; }
         
         * { user-select: none; -webkit-tap-highlight-color: transparent; }
         input, textarea { user-select: auto !important; }
@@ -44,7 +62,7 @@
 </head>
 <body class="bg-black text-white font-sans overflow-x-hidden">
     
-    <div id="detail-modal" class="hidden fixed inset-0 z-[200] bg-black/80 flex items-center justify-center p-4">
+    <div id="detail-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4">
         <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700 relative">
             <button onclick="closeModal()" class="absolute top-4 right-4 text-zinc-500 font-bold text-xl">✕</button>
             <h3 class="text-yellow-500 font-black uppercase text-lg mb-1">Details</h3>
@@ -70,7 +88,7 @@
         </div>
     </div>
 
-    <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl pb-40 relative">
+    <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl pb-60 relative">
         
         <div id="status-banner" class="hidden mb-6 p-4 rounded-2xl text-center shadow-lg border-2">
             <h2 id="status-headline" class="text-sm font-black uppercase mb-1"></h2>
@@ -266,7 +284,6 @@
         }
 
         async function loadGlobalStatus() {
-            // WICHTIG: Wir holen den Status immer vom Admin-Profil, damit alle ihn sehen
             const { data, error } = await supabaseClient.from('profiles').select('admin_status').eq('email', ADMIN_EMAIL).maybeSingle();
             if (data) {
                 renderGlobalBanner(data.admin_status);
@@ -278,7 +295,6 @@
             const h = document.getElementById('status-headline');
             const s = document.getElementById('status-subline');
             
-            // UI im Admin-Bereich (Buttons)
             const btnSick = document.getElementById('status-sick-state');
             const btnVac = document.getElementById('status-vacation-state');
             if(btnSick) btnSick.innerText = (status === 'sick' ? 'AN' : 'AUS');
@@ -301,17 +317,15 @@
 
         async function toggleGlobalStatus(type) {
             try {
-                // Den aktuellen Status vom Admin-Profil holen
                 let { data } = await supabaseClient.from('profiles').select('admin_status').eq('id', currentUser.id).maybeSingle();
                 const newStatus = (data && data.admin_status === type) ? null : type;
                 
-                // Update in der DB
                 const { error } = await supabaseClient.from('profiles').update({ admin_status: newStatus }).eq('id', currentUser.id);
                 
                 if (error) {
                     alert("Datenbank-Fehler: " + error.message);
                 } else {
-                    location.reload(); // Sofortiger Refresh
+                    location.reload(); 
                 }
             } catch (err) { 
                 alert("System-Fehler: " + err.message); 
@@ -470,10 +484,26 @@
         }
 
         async function processRequest(btn, id, status, email, date) {
-            let reason = status === 'rejected' ? prompt("Ablehnungsgrund (optional):") : null;
+            let reason = null;
+            if (status === 'rejected') {
+                reason = prompt("Ablehnungsgrund (optional):");
+            }
+            
             btn.innerText = '..';
             await supabaseClient.from('bookings').update({ status, reason_admin: reason }).eq('id', id);
-            if (email && status === 'confirmed') { emailjs.init(EJS_PUBLIC_KEY); emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email, status_text: 'BESTÄTIGT', date }); }
+            
+            if (email) {
+                emailjs.init(EJS_PUBLIC_KEY);
+                const statusText = (status === 'confirmed') ? 'BESTÄTIGT' : 'ABGELEHNT';
+                const adminNote = reason ? `Grund: ${reason}` : '';
+                
+                await emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { 
+                    email: email, 
+                    status_text: statusText, 
+                    date: date,
+                    admin_note: adminNote
+                });
+            }
             fetchAndRender();
         }
 
@@ -498,3 +528,4 @@
     </script>
 </body>
 </html>
+
