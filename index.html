@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V4.2</title>
+    <title>Springerplan made by Flo - V3.7</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -24,7 +24,6 @@
         .day-pending { background-color: #eab308; color: black; }
         .day-vacation { background-color: #3b82f6; color: white; }
         .day-sick { background-color: #7f1d1d; color: white; border: 1px solid #f87171; }
-        .day-planned-free { background-color: #9333ea; color: white; }
         
         .day-disabled { background-color: #3f3f46 !important; color: #71717a !important; cursor: not-allowed !important; opacity: 0.5; pointer-events: none; }
         .day-selected { border: 3px solid #ffffff !important; transform: scale(0.92); z-index: 10; }
@@ -36,6 +35,7 @@
 
         #detail-modal { backdrop-filter: blur(5px); }
         
+        /* --- ACTION BAR FIX --- */
         #action-bar { 
             position: fixed; 
             bottom: calc(20px + env(safe-area-inset-bottom)); 
@@ -53,6 +53,7 @@
             opacity: 1;
             pointer-events: auto;
         }
+        /* Padding für Container, damit nichts verdeckt wird */
         #app-container { padding-bottom: 120px !important; }
         
         * { user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -131,6 +132,12 @@
                 <button onclick="handleLogout()" class="text-[9px] bg-red-600/10 px-4 py-2 rounded-xl text-red-500 font-black">LOGOUT</button>
             </header>
 
+            <div class="flex justify-center mb-6">
+                <button id="refresh-btn" onclick="refreshData()" class="bg-zinc-800 text-yellow-500 px-8 py-3 rounded-2xl text-[10px] font-black uppercase border border-zinc-700 active:scale-95 transition-all shadow-lg">
+                    Aktualisieren
+                </button>
+            </div>
+
             <section class="mb-12">
                 <div class="flex justify-between items-center mb-6 px-2">
                     <button onclick="changeMonth(-1)" class="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center">◀</button>
@@ -185,11 +192,10 @@
                 <button id="btn-submit" onclick="submitSelection()" class="bg-yellow-500 text-black px-4 py-3 rounded-2xl text-[9px] font-black flex-[2]">Senden</button>
             </div>
             
-            <div id="admin-actions" class="hidden grid grid-cols-5 gap-2 mt-3 pt-3 border-t border-zinc-700/50">
+            <div id="admin-actions" class="hidden grid grid-cols-4 gap-2 mt-3 pt-3 border-t border-zinc-700/50">
                 <button onclick="submitAdminAction('direkt')" class="bg-white text-black py-2 rounded-xl text-[8px] font-black">Direkt</button>
                 <button onclick="submitAdminAction('urlaub')" class="bg-blue-600 text-white py-2 rounded-xl text-[8px] font-black">Urlaub</button>
                 <button onclick="submitAdminAction('krank')" class="bg-red-800 text-white py-2 rounded-xl text-[8px] font-black border border-red-500">Krank</button>
-                <button onclick="submitAdminAction('planned_free')" class="bg-purple-600 text-white py-2 rounded-xl text-[8px] font-black">Frei</button>
                 <button onclick="submitAdminAction('frei')" class="bg-red-600 text-white py-2 rounded-xl text-[8px] font-black">Löschen</button>
             </div>
         </div>
@@ -246,7 +252,7 @@
                     }
 
                     showSection('main-section');
-                    await loadGlobalStatus();
+                    await loadGlobalStatus(); // Holt den Status vom Admin-Account
                     updateUI();
                 } else {
                     showSection('auth-section');
@@ -317,22 +323,15 @@
 
         async function toggleGlobalStatus(type) {
             try {
-                // Lokaler Check des aktuellen Status aus den Buttons
-                const currentStatus = (type === 'sick') 
-                    ? (document.getElementById('status-sick-state').innerText === 'AN' ? 'sick' : null)
-                    : (document.getElementById('status-vacation-state').innerText === 'AN' ? 'vacation' : null);
-
-                const newStatus = (currentStatus === type) ? null : type;
+                let { data } = await supabaseClient.from('profiles').select('admin_status').eq('id', currentUser.id).maybeSingle();
+                const newStatus = (data && data.admin_status === type) ? null : type;
                 
-                // UI sofort aktualisieren
-                renderGlobalBanner(newStatus);
-
-                // In DB speichern
                 const { error } = await supabaseClient.from('profiles').update({ admin_status: newStatus }).eq('id', currentUser.id);
                 
                 if (error) {
                     alert("Datenbank-Fehler: " + error.message);
-                    await loadGlobalStatus(); // Rollback UI falls DB Fehler
+                } else {
+                    location.reload(); 
                 }
             } catch (err) { 
                 alert("System-Fehler: " + err.message); 
@@ -377,7 +376,6 @@
                     else if (b.status === 'pending') { cls = "day-pending"; label = "OFFEN"; }
                     else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
                     else if (b.status === 'sick') { cls = "day-sick"; label = "KRANK"; }
-                    else if (b.status === 'planned_free') { cls = "day-planned-free"; label = "FREI"; }
                 }
                 
                 const isSelected = selectedDates.includes(dateStr) ? 'day-selected' : '';
@@ -493,14 +491,24 @@
 
         async function processRequest(btn, id, status, email, date) {
             let reason = null;
-            if (status === 'rejected') { reason = prompt("Ablehnungsgrund (optional):"); }
+            if (status === 'rejected') {
+                reason = prompt("Ablehnungsgrund (optional):");
+            }
+            
             btn.innerText = '..';
             await supabaseClient.from('bookings').update({ status, reason_admin: reason }).eq('id', id);
+            
             if (email) {
                 emailjs.init(EJS_PUBLIC_KEY);
                 const statusText = (status === 'confirmed') ? 'BESTÄTIGT' : 'ABGELEHNT';
                 const adminNote = reason ? `Grund: ${reason}` : '';
-                await emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email: email, status_text: statusText, date: date, admin_note: adminNote });
+                
+                await emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { 
+                    email: email, 
+                    status_text: statusText, 
+                    date: date,
+                    admin_note: adminNote
+                });
             }
             fetchAndRender();
         }
@@ -510,7 +518,6 @@
             if (type === 'direkt') { const f = prompt("Filiale:"); if (f) await supabaseClient.from('bookings').insert(insData('confirmed', f, 'Admin')); }
             else if (type === 'urlaub') { await supabaseClient.from('bookings').insert(insData('vacation', 'URLAUB', 'Admin')); }
             else if (type === 'krank') { await supabaseClient.from('bookings').insert(insData('sick', 'KRANK', 'Admin')); }
-            else if (type === 'planned_free') { await supabaseClient.from('bookings').insert(insData('planned_free', 'FREI', 'Admin')); }
             else if (type === 'frei') { await supabaseClient.from('bookings').delete().in('requested_date', selectedDates); }
             clearSelection();
         }
@@ -521,12 +528,19 @@
             if (r === null) { setBtnLoading('btn-submit', false); return; }
             const ins = selectedDates.map(d => ({ user_id: currentUser.id, requested_date: d, display_name: userProfile.display_name, store_number: userProfile.store_number, user_email: currentUser.email, reason_user: r, status: 'pending' }));
             const { error } = await supabaseClient.from('bookings').insert(ins);
-            if (!error) { 
-                emailjs.init(EJS_PUBLIC_KEY); 
-                emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" }); 
-                alert("Erfolgreich!"); clearSelection(); 
-            }
+            if (!error) { emailjs.init(EJS_PUBLIC_KEY); emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" }); alert("Erfolgreich!"); clearSelection(); }
             setBtnLoading('btn-submit', false);
+        }
+
+        async function refreshData() {
+            setBtnLoading('refresh-btn', true, "");
+            try {
+                await loadGlobalStatus();
+                await fetchAndRender();
+            } catch (err) {
+                console.error("Refresh fehlgeschlagen:", err);
+            }
+            setBtnLoading('refresh-btn', false);
         }
     </script>
 </body>
