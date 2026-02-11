@@ -25,6 +25,9 @@
         .day-vacation { background-color: #3b82f6; color: white; }
         .day-sick { background-color: #7f1d1d; color: white; border: 1px solid #f87171; }
         
+        /* Neu: Lila Farbe für Frei */
+        .day-planned-free { background-color: #9333ea; color: white; }
+        
         .day-disabled { background-color: #3f3f46 !important; color: #71717a !important; cursor: not-allowed !important; opacity: 0.5; pointer-events: none; }
         .day-selected { border: 3px solid #ffffff !important; transform: scale(0.92); z-index: 10; }
         .store-label { font-size: 0.4rem; background: rgba(0,0,0,0.4); width: 100%; text-align: center; position: absolute; bottom: 0; border-radius: 0 0 10px 10px; pointer-events: none; }
@@ -132,16 +135,18 @@
                 <button onclick="handleLogout()" class="text-[9px] bg-red-600/10 px-4 py-2 rounded-xl text-red-500 font-black">LOGOUT</button>
             </header>
 
-            <div class="flex justify-center mb-6">
-                <button id="refresh-btn" onclick="refreshData()" class="bg-zinc-800 text-yellow-500 px-8 py-3 rounded-2xl text-[10px] font-black uppercase border border-zinc-700 active:scale-95 transition-all shadow-lg">
-                    Aktualisieren
-                </button>
-            </div>
-
             <section class="mb-12">
                 <div class="flex justify-between items-center mb-6 px-2">
                     <button onclick="changeMonth(-1)" class="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center">◀</button>
-                    <h3 id="month-name" class="text-sm font-black uppercase italic">Monat</h3>
+                    
+                    <div class="flex flex-col items-center">
+                        <button onclick="location.reload()" class="mb-2 text-[10px] bg-zinc-800/50 px-3 py-1.5 rounded-full text-zinc-400 font-black uppercase flex items-center gap-2 active:scale-95 transition-transform border border-zinc-700/50">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+                            Aktualisieren
+                        </button>
+                        <h3 id="month-name" class="text-sm font-black uppercase italic">Monat</h3>
+                    </div>
+
                     <button onclick="changeMonth(1)" class="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center">▶</button>
                 </div>
                 
@@ -192,10 +197,11 @@
                 <button id="btn-submit" onclick="submitSelection()" class="bg-yellow-500 text-black px-4 py-3 rounded-2xl text-[9px] font-black flex-[2]">Senden</button>
             </div>
             
-            <div id="admin-actions" class="hidden grid grid-cols-4 gap-2 mt-3 pt-3 border-t border-zinc-700/50">
+            <div id="admin-actions" class="hidden grid grid-cols-5 gap-2 mt-3 pt-3 border-t border-zinc-700/50">
                 <button onclick="submitAdminAction('direkt')" class="bg-white text-black py-2 rounded-xl text-[8px] font-black">Direkt</button>
                 <button onclick="submitAdminAction('urlaub')" class="bg-blue-600 text-white py-2 rounded-xl text-[8px] font-black">Urlaub</button>
                 <button onclick="submitAdminAction('krank')" class="bg-red-800 text-white py-2 rounded-xl text-[8px] font-black border border-red-500">Krank</button>
+                <button onclick="submitAdminAction('planned_free')" class="bg-purple-600 text-white py-2 rounded-xl text-[8px] font-black">Frei</button>
                 <button onclick="submitAdminAction('frei')" class="bg-red-600 text-white py-2 rounded-xl text-[8px] font-black">Löschen</button>
             </div>
         </div>
@@ -376,6 +382,7 @@
                     else if (b.status === 'pending') { cls = "day-pending"; label = "OFFEN"; }
                     else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
                     else if (b.status === 'sick') { cls = "day-sick"; label = "KRANK"; }
+                    else if (b.status === 'planned_free') { cls = "day-planned-free"; label = "FREI"; }
                 }
                 
                 const isSelected = selectedDates.includes(dateStr) ? 'day-selected' : '';
@@ -518,6 +525,7 @@
             if (type === 'direkt') { const f = prompt("Filiale:"); if (f) await supabaseClient.from('bookings').insert(insData('confirmed', f, 'Admin')); }
             else if (type === 'urlaub') { await supabaseClient.from('bookings').insert(insData('vacation', 'URLAUB', 'Admin')); }
             else if (type === 'krank') { await supabaseClient.from('bookings').insert(insData('sick', 'KRANK', 'Admin')); }
+            else if (type === 'planned_free') { await supabaseClient.from('bookings').insert(insData('planned_free', 'FREI', 'Admin')); }
             else if (type === 'frei') { await supabaseClient.from('bookings').delete().in('requested_date', selectedDates); }
             clearSelection();
         }
@@ -530,17 +538,6 @@
             const { error } = await supabaseClient.from('bookings').insert(ins);
             if (!error) { emailjs.init(EJS_PUBLIC_KEY); emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" }); alert("Erfolgreich!"); clearSelection(); }
             setBtnLoading('btn-submit', false);
-        }
-
-        async function refreshData() {
-            setBtnLoading('refresh-btn', true, "");
-            try {
-                await loadGlobalStatus();
-                await fetchAndRender();
-            } catch (err) {
-                console.error("Refresh fehlgeschlagen:", err);
-            }
-            setBtnLoading('refresh-btn', false);
         }
     </script>
 </body>
