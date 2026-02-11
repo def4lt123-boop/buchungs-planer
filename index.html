@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V3.7</title>
+    <title>Springerplan made by Flo - V4.2</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -24,8 +24,6 @@
         .day-pending { background-color: #eab308; color: black; }
         .day-vacation { background-color: #3b82f6; color: white; }
         .day-sick { background-color: #7f1d1d; color: white; border: 1px solid #f87171; }
-        
-        /* Neu: Lila Farbe für Frei */
         .day-planned-free { background-color: #9333ea; color: white; }
         
         .day-disabled { background-color: #3f3f46 !important; color: #71717a !important; cursor: not-allowed !important; opacity: 0.5; pointer-events: none; }
@@ -38,7 +36,6 @@
 
         #detail-modal { backdrop-filter: blur(5px); }
         
-        /* --- ACTION BAR FIX --- */
         #action-bar { 
             position: fixed; 
             bottom: calc(20px + env(safe-area-inset-bottom)); 
@@ -56,7 +53,6 @@
             opacity: 1;
             pointer-events: auto;
         }
-        /* Padding für Container, damit nichts verdeckt wird */
         #app-container { padding-bottom: 120px !important; }
         
         * { user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -250,7 +246,7 @@
                     }
 
                     showSection('main-section');
-                    await loadGlobalStatus(); // Holt den Status vom Admin-Account
+                    await loadGlobalStatus();
                     updateUI();
                 } else {
                     showSection('auth-section');
@@ -321,15 +317,22 @@
 
         async function toggleGlobalStatus(type) {
             try {
-                let { data } = await supabaseClient.from('profiles').select('admin_status').eq('id', currentUser.id).maybeSingle();
-                const newStatus = (data && data.admin_status === type) ? null : type;
+                // Lokaler Check des aktuellen Status aus den Buttons
+                const currentStatus = (type === 'sick') 
+                    ? (document.getElementById('status-sick-state').innerText === 'AN' ? 'sick' : null)
+                    : (document.getElementById('status-vacation-state').innerText === 'AN' ? 'vacation' : null);
+
+                const newStatus = (currentStatus === type) ? null : type;
                 
+                // UI sofort aktualisieren
+                renderGlobalBanner(newStatus);
+
+                // In DB speichern
                 const { error } = await supabaseClient.from('profiles').update({ admin_status: newStatus }).eq('id', currentUser.id);
                 
                 if (error) {
                     alert("Datenbank-Fehler: " + error.message);
-                } else {
-                    location.reload(); 
+                    await loadGlobalStatus(); // Rollback UI falls DB Fehler
                 }
             } catch (err) { 
                 alert("System-Fehler: " + err.message); 
@@ -490,24 +493,14 @@
 
         async function processRequest(btn, id, status, email, date) {
             let reason = null;
-            if (status === 'rejected') {
-                reason = prompt("Ablehnungsgrund (optional):");
-            }
-            
+            if (status === 'rejected') { reason = prompt("Ablehnungsgrund (optional):"); }
             btn.innerText = '..';
             await supabaseClient.from('bookings').update({ status, reason_admin: reason }).eq('id', id);
-            
             if (email) {
                 emailjs.init(EJS_PUBLIC_KEY);
                 const statusText = (status === 'confirmed') ? 'BESTÄTIGT' : 'ABGELEHNT';
                 const adminNote = reason ? `Grund: ${reason}` : '';
-                
-                await emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { 
-                    email: email, 
-                    status_text: statusText, 
-                    date: date,
-                    admin_note: adminNote
-                });
+                await emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, { email: email, status_text: statusText, date: date, admin_note: adminNote });
             }
             fetchAndRender();
         }
@@ -528,7 +521,11 @@
             if (r === null) { setBtnLoading('btn-submit', false); return; }
             const ins = selectedDates.map(d => ({ user_id: currentUser.id, requested_date: d, display_name: userProfile.display_name, store_number: userProfile.store_number, user_email: currentUser.email, reason_user: r, status: 'pending' }));
             const { error } = await supabaseClient.from('bookings').insert(ins);
-            if (!error) { emailjs.init(EJS_PUBLIC_KEY); emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" }); alert("Erfolgreich!"); clearSelection(); }
+            if (!error) { 
+                emailjs.init(EJS_PUBLIC_KEY); 
+                emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: userProfile.display_name, store_number: userProfile.store_number, date: selectedDates.join(", "), reason: r || "-" }); 
+                alert("Erfolgreich!"); clearSelection(); 
+            }
             setBtnLoading('btn-submit', false);
         }
     </script>
