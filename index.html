@@ -25,6 +25,9 @@
         .day-vacation { background-color: #3b82f6; color: white; }
         .day-sick { background-color: #7f1d1d; color: white; border: 1px solid #f87171; }
         
+        /* Neu: Lila Farbe für Frei */
+        .day-planned-free { background-color: #9333ea; color: white; }
+        
         .day-disabled { background-color: #3f3f46 !important; color: #71717a !important; cursor: not-allowed !important; opacity: 0.5; pointer-events: none; }
         .day-selected { border: 3px solid #ffffff !important; transform: scale(0.92); z-index: 10; }
         .store-label { font-size: 0.4rem; background: rgba(0,0,0,0.4); width: 100%; text-align: center; position: absolute; bottom: 0; border-radius: 0 0 10px 10px; pointer-events: none; }
@@ -186,10 +189,11 @@
                 <button id="btn-submit" onclick="submitSelection()" class="bg-yellow-500 text-black px-4 py-3 rounded-2xl text-[9px] font-black flex-[2]">Senden</button>
             </div>
             
-            <div id="admin-actions" class="hidden grid grid-cols-4 gap-2 mt-3 pt-3 border-t border-zinc-700/50">
+            <div id="admin-actions" class="hidden grid grid-cols-5 gap-2 mt-3 pt-3 border-t border-zinc-700/50">
                 <button onclick="submitAdminAction('direkt')" class="bg-white text-black py-2 rounded-xl text-[8px] font-black">Direkt</button>
                 <button onclick="submitAdminAction('urlaub')" class="bg-blue-600 text-white py-2 rounded-xl text-[8px] font-black">Urlaub</button>
                 <button onclick="submitAdminAction('krank')" class="bg-red-800 text-white py-2 rounded-xl text-[8px] font-black border border-red-500">Krank</button>
+                <button onclick="submitAdminAction('planned_free')" class="bg-purple-600 text-white py-2 rounded-xl text-[8px] font-black">Frei</button>
                 <button onclick="submitAdminAction('frei')" class="bg-red-600 text-white py-2 rounded-xl text-[8px] font-black">Löschen</button>
             </div>
         </div>
@@ -370,6 +374,7 @@
                     else if (b.status === 'pending') { cls = "day-pending"; label = "OFFEN"; }
                     else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
                     else if (b.status === 'sick') { cls = "day-sick"; label = "KRANK"; }
+                    else if (b.status === 'planned_free') { cls = "day-planned-free"; label = "FREI"; }
                 }
                 
                 const isSelected = selectedDates.includes(dateStr) ? 'day-selected' : '';
@@ -512,6 +517,7 @@
             if (type === 'direkt') { const f = prompt("Filiale:"); if (f) await supabaseClient.from('bookings').insert(insData('confirmed', f, 'Admin')); }
             else if (type === 'urlaub') { await supabaseClient.from('bookings').insert(insData('vacation', 'URLAUB', 'Admin')); }
             else if (type === 'krank') { await supabaseClient.from('bookings').insert(insData('sick', 'KRANK', 'Admin')); }
+            else if (type === 'planned_free') { await supabaseClient.from('bookings').insert(insData('planned_free', 'FREI', 'Admin')); }
             else if (type === 'frei') { await supabaseClient.from('bookings').delete().in('requested_date', selectedDates); }
             clearSelection();
         }
