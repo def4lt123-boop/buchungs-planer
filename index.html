@@ -6,7 +6,7 @@
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#18181b">
+    <meta name="theme-color" content="#0a0a0a">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
@@ -15,27 +15,325 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=Fraunces:wght@700;900&display=swap" rel="stylesheet">
     <style>
-        .day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-        .calendar-day { aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; font-size: 0.75rem; font-weight: bold; cursor: pointer; position: relative; transition: transform 0.1s ease; border: 2px solid transparent; touch-action: manipulation; min-height: 48px; }
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            user-select: none; 
+            -webkit-tap-highlight-color: transparent;
+        }
         
-        .day-free { background-color: #22c55e; color: white; } 
-        .day-busy { background-color: #ef4444; color: white; } 
-        .day-pending { background-color: #eab308; color: black; }
-        .day-vacation { background-color: #3b82f6; color: white; }
-        .day-sick { background-color: #7f1d1d; color: white; border: 1px solid #f87171; }
-        .day-planned-free { background-color: #9333ea; color: white; }
+        input, textarea { user-select: auto !important; }
         
-        .day-disabled { background-color: #3f3f46 !important; color: #71717a !important; cursor: not-allowed !important; opacity: 0.5; pointer-events: none; }
-        .day-selected { border: 3px solid #ffffff !important; transform: scale(0.92); z-index: 10; }
-        .store-label { font-size: 0.45rem; background: rgba(0,0,0,0.4); width: 100%; text-align: center; position: absolute; bottom: 0; border-radius: 0 0 10px 10px; pointer-events: none; }
+        body {
+            font-family: 'DM Sans', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: #ffffff;
+            overflow-x: hidden;
+            min-height: 100vh;
+            position: relative;
+        }
         
-        .spinner { border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 2px solid white; width: 14px; height: 14px; animation: spin 1s linear infinite; display: inline-block; margin-right: 6px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .btn-loading { opacity: 0.7; cursor: wait !important; pointer-events: none; }
-
-        #detail-modal, #confirm-modal, #input-modal { backdrop-filter: blur(5px); }
+        /* Animated background particles */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(255, 200, 50, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(100, 150, 255, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+            animation: floatBg 20s ease-in-out infinite;
+        }
         
+        @keyframes floatBg {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.1); }
+        }
+        
+        /* Login Screen Styles */
+        #login-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: linear-gradient(135deg, #0f0f0f 0%, #1f1f1f 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            animation: slideUp 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .login-logo {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .login-logo-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+            animation: iconFloat 3s ease-in-out infinite;
+        }
+        
+        @keyframes iconFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(5deg); }
+        }
+        
+        .login-title {
+            font-family: 'Fraunces', serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #FFC832 0%, #FF8C32 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+        
+        .login-subtitle {
+            color: #888;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+        
+        .login-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 2rem;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #FFC832, #FF8C32, #FFC832);
+            background-size: 200% 100%;
+            animation: shimmer 3s linear infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        .input-group {
+            margin-bottom: 1.25rem;
+        }
+        
+        .input-label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #999;
+            margin-bottom: 0.5rem;
+        }
+        
+        .input-field {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+        
+        .input-field:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #FFC832;
+            box-shadow: 0 0 0 4px rgba(255, 200, 50, 0.1);
+        }
+        
+        .input-field::placeholder {
+            color: #555;
+        }
+        
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(135deg, #FFC832 0%, #FF8C32 100%);
+            border: none;
+            border-radius: 1rem;
+            padding: 1.25rem;
+            color: #000;
+            font-size: 1rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(255, 200, 50, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .btn-primary:active::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(255, 200, 50, 0.4);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            width: 100%;
+            background: transparent;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            padding: 1rem;
+            color: #999;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+        
+        .btn-secondary:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+        
+        /* Main App Styles */
+        .day-grid { 
+            display: grid; 
+            grid-template-columns: repeat(7, 1fr); 
+            gap: 6px; 
+            padding: 1rem;
+        }
+        
+        .calendar-day { 
+            aspect-ratio: 1/1; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            border-radius: 1rem; 
+            font-size: 0.8rem; 
+            font-weight: 700; 
+            cursor: pointer; 
+            position: relative; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
+            border: 2px solid transparent; 
+            touch-action: manipulation;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .calendar-day:active {
+            transform: scale(0.94);
+        }
+        
+        .day-free { 
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white; 
+        } 
+        
+        .day-busy { 
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white; 
+        } 
+        
+        .day-pending { 
+            background: linear-gradient(135deg, #FFC832 0%, #FF8C32 100%);
+            color: black; 
+        }
+        
+        .day-vacation { 
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+        
+        .day-sick { 
+            background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
+            color: white; 
+        }
+        
+        .day-planned-free { 
+            background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
+            color: white;
+        }
+        
+        .day-disabled { 
+            background: #2a2a2a !important; 
+            color: #555 !important; 
+            cursor: not-allowed !important; 
+            opacity: 0.4; 
+            pointer-events: none;
+            box-shadow: none !important;
+        }
+        
+        .day-selected { 
+            border: 3px solid #FFC832 !important; 
+            transform: scale(0.95); 
+            z-index: 10;
+            box-shadow: 0 0 0 4px rgba(255, 200, 50, 0.2), 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+        }
+        
+        .store-label { 
+            font-size: 0.45rem; 
+            background: rgba(0,0,0,0.5); 
+            width: 100%; 
+            text-align: center; 
+            position: absolute; 
+            bottom: 0; 
+            border-radius: 0 0 0.85rem 0.85rem; 
+            pointer-events: none;
+            padding: 2px 0;
+            font-weight: 600;
+        }
+        
+        /* Action Bar */
         #action-bar { 
             position: fixed; 
             bottom: calc(20px + env(safe-area-inset-bottom)); 
@@ -43,43 +341,110 @@
             transform: translate(-50%, 200%); 
             z-index: 9999; 
             width: 92%; 
-            max-width: 400px;
+            max-width: 420px;
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
             opacity: 0;
             pointer-events: none;
         }
+        
         #action-bar.visible { 
             transform: translate(-50%, 0); 
             opacity: 1;
             pointer-events: auto;
         }
-        #app-container { padding-bottom: 120px !important; }
         
-        * { user-select: none; -webkit-tap-highlight-color: transparent; }
-        input, textarea { user-select: auto !important; }
-
-        /* Legend Styles */
-        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.7rem; padding: 6px; }
-        .legend-box { width: 18px; height: 18px; border-radius: 5px; flex-shrink: 0; }
-
-        /* Toast Notification */
+        .action-btn {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 1.5rem;
+            padding: 1rem 1.5rem;
+            color: white;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.12);
+        }
+        
+        /* Modals */
+        .modal-overlay {
+            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.7);
+        }
+        
+        .modal-content {
+            background: rgba(30, 30, 30, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 2rem;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            max-width: 450px;
+            width: 92%;
+        }
+        
+        .modal-header {
+            font-family: 'Fraunces', serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #FFC832 0%, #FF8C32 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Toast */
         .toast { 
             position: fixed; 
             top: 20px; 
             right: 20px; 
-            background: #18181b; 
+            background: rgba(30, 30, 30, 0.95);
+            backdrop-filter: blur(20px);
             color: white; 
-            padding: 14px 22px; 
-            border-radius: 14px; 
+            padding: 1rem 1.5rem; 
+            border-radius: 1rem; 
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             z-index: 10001;
-            animation: slideIn 0.3s ease;
-            border: 1px solid #3f3f46;
-            font-size: 0.85rem;
+            animation: slideInRight 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-weight: 600;
         }
-        @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-        /* Offline Indicator */
+        
+        @keyframes slideInRight { 
+            from { transform: translateX(400px); opacity: 0; } 
+            to { transform: translateX(0); opacity: 1; } 
+        }
+        
+        /* Loading Spinner */
+        .spinner { 
+            border: 2px solid rgba(255,255,255,0.3); 
+            border-radius: 50%; 
+            border-top: 2px solid white; 
+            width: 14px; 
+            height: 14px; 
+            animation: spin 0.8s linear infinite; 
+            display: inline-block; 
+            margin-right: 8px;
+        }
+        
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+        
+        .btn-loading { 
+            opacity: 0.6; 
+            cursor: wait !important; 
+            pointer-events: none; 
+        }
+        
+        /* Offline Badge */
         .offline-badge { 
             position: fixed; 
             top: 10px; 
@@ -87,696 +452,584 @@
             transform: translateX(-50%); 
             background: #ef4444; 
             color: white; 
-            padding: 8px 18px; 
-            border-radius: 24px; 
-            font-size: 0.7rem; 
-            font-weight: bold; 
+            padding: 0.5rem 1.25rem; 
+            border-radius: 2rem; 
+            font-size: 0.75rem; 
+            font-weight: 700; 
             z-index: 10002;
             animation: pulse 2s infinite;
-        }
-
-        /* Collapsible Booking List */
-        .booking-item { 
-            transition: opacity 0.3s ease, max-height 0.3s ease;
-        }
-        .booking-item.collapsed { 
-            max-height: 0;
-            opacity: 0;
-            overflow: hidden;
-            margin: 0 !important;
-            padding: 0 !important;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
         }
         
-        /* Refresh Button Animation */
-        @keyframes rotate { 
-            from { transform: rotate(0deg); } 
-            to { transform: rotate(360deg); } 
-        }
-        .refresh-spinning {
-            animation: rotate 0.6s linear;
-        }
-
-        /* Mobile-optimized inputs */
-        input, textarea, select {
-            font-size: 16px !important; /* Prevents zoom on iOS */
-            min-height: 44px;
-        }
-        
-        button {
-            min-height: 44px; /* Better touch target */
-        }
-
-        /* Improved Login Screen */
-        .login-container {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #1e1e1e 0%, #0a0a0a 100%);
-        }
-        
-        .login-card {
-            background: #18181b;
-            border: 1px solid #27272a;
-            border-radius: 24px;
-            padding: 32px 24px;
-            width: 90%;
-            max-width: 400px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-        }
-
-        .login-input {
-            background: #27272a;
-            border: 2px solid #3f3f46;
-            border-radius: 12px;
-            padding: 14px 16px;
-            width: 100%;
-            color: white;
-            font-size: 16px;
-            transition: border-color 0.2s;
-        }
-
-        .login-input:focus {
-            outline: none;
-            border-color: #eab308;
-        }
-
-        .login-button {
-            background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
-            color: black;
-            font-weight: 800;
-            border-radius: 12px;
-            padding: 16px;
-            width: 100%;
-            font-size: 16px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            transition: transform 0.1s, opacity 0.2s;
-            min-height: 52px;
-        }
-
-        .login-button:active {
-            transform: scale(0.98);
-        }
-
-        .toggle-button {
-            color: #eab308;
-            font-size: 14px;
+        /* Legend */
+        .legend-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            font-size: 0.75rem;
             font-weight: 600;
-            text-decoration: underline;
+        }
+        
+        .legend-box { 
+            width: 20px; 
+            height: 20px; 
+            border-radius: 6px; 
+            flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* Sections */
+        .section-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #FFC832;
+            margin-bottom: 1rem;
+        }
+        
+        /* Month Header */
+        .month-header {
+            font-family: 'Fraunces', serif;
+            font-size: 2rem;
+            font-weight: 900;
+            text-align: center;
+            margin: 2rem 0 1rem;
+            background: linear-gradient(135deg, #FFC832 0%, #FF8C32 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        /* Weekday Labels */
+        .weekday-labels {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            padding: 0 1rem 0.5rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #888;
+            text-align: center;
+        }
+        
+        /* Button Styles */
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            padding: 0.75rem 1.25rem;
+            color: white;
+            font-weight: 700;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        #app-container { 
+            padding-bottom: 140px !important;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Improved spacing for mobile */
+        @media (max-width: 640px) {
+            .login-title {
+                font-size: 2rem;
+            }
+            
+            .modal-content {
+                padding: 1.5rem;
+            }
+            
+            .month-header {
+                font-size: 1.75rem;
+            }
         }
     </style>
 </head>
-<body class="bg-black text-white font-sans overflow-x-hidden">
+<body>
     
     <!-- Offline Indicator -->
     <div id="offline-indicator" class="offline-badge hidden">
         🔴 Keine Internetverbindung
     </div>
 
-    <!-- Detail Modal -->
-    <div id="detail-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4">
-        <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700 relative">
-            <button onclick="closeModal()" class="absolute top-4 right-4 text-zinc-500 font-bold text-2xl min-h-[44px] min-w-[44px]">✕</button>
-            <h3 class="text-yellow-500 font-black uppercase text-xl mb-2">Details</h3>
-            <p id="modal-date" class="text-sm text-zinc-400 font-bold mb-4">DATUM</p>
+    <!-- Login Screen -->
+    <div id="login-screen" class="hidden">
+        <div class="login-container">
+            <div class="login-logo">
+                <div class="login-logo-icon">📅</div>
+                <h1 class="login-title">Springerplan</h1>
+                <p class="login-subtitle">Deine Schichtplanung, intelligent verwaltet</p>
+            </div>
             
-            <div class="space-y-4">
-                <div class="bg-zinc-900 p-4 rounded-xl border border-zinc-700">
-                    <p class="text-[10px] text-zinc-500 uppercase font-bold mb-2">Gebucht von / Status</p>
-                    <p id="modal-user" class="text-base font-bold text-white">...</p>
+            <div class="login-card">
+                <div class="input-group">
+                    <label class="input-label" for="email">E-Mail</label>
+                    <input type="email" id="email" class="input-field" placeholder="deine@email.com" autocomplete="email">
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label" for="password">Passwort</label>
+                    <input type="password" id="password" class="input-field" placeholder="••••••••" autocomplete="current-password">
+                </div>
+                
+                <div id="signup-fields" class="hidden">
+                    <div class="input-group">
+                        <label class="input-label" for="display_name">Dein Name</label>
+                        <input type="text" id="display_name" class="input-field" placeholder="Max Mustermann">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="store_number">Filiale</label>
+                        <input type="text" id="store_number" class="input-field" placeholder="z.B. 123">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="reg_code">Registrierungs-Code</label>
+                        <input type="text" id="reg_code" class="input-field" placeholder="Code eingeben">
+                    </div>
+                </div>
+                
+                <button id="auth-btn-main" onclick="handleAuthAction()" class="btn-primary">
+                    Login
+                </button>
+                
+                <button id="toggle-auth-btn" onclick="toggleAuthMode()" class="btn-secondary">
+                    Konto erstellen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app-container" class="hidden" style="padding: 1rem;">
+        
+        <!-- Header -->
+        <div class="section-card" style="text-align: center;">
+            <h1 class="month-header" style="margin: 0;">📅 Springerplan</h1>
+            <p style="color: #888; font-size: 0.85rem; margin-top: 0.5rem;" id="user-greeting">Hallo!</p>
+            <button onclick="handleLogout()" class="btn-glass" style="margin-top: 1rem;">Abmelden</button>
+        </div>
+
+        <!-- Month Selector -->
+        <div class="section-card">
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                <button onclick="changeMonth(-1)" class="btn-glass flex-1">← Vorheriger Monat</button>
+                <button onclick="changeMonth(1)" class="btn-glass flex-1">Nächster Monat →</button>
+            </div>
+        </div>
+
+        <!-- Calendar -->
+        <div class="section-card">
+            <h2 class="month-header" id="calendar-month-year">Monat Jahr</h2>
+            <div class="weekday-labels">
+                <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div>
+            </div>
+            <div id="calendar-grid" class="day-grid"></div>
+        </div>
+
+        <!-- Legend -->
+        <div class="section-card">
+            <h3 class="section-title">Legende</h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                <div class="legend-item"><div class="legend-box" style="background: linear-gradient(135deg, #22c55e, #16a34a);"></div>Frei</div>
+                <div class="legend-item"><div class="legend-box" style="background: linear-gradient(135deg, #ef4444, #dc2626);"></div>Besetzt</div>
+                <div class="legend-item"><div class="legend-box" style="background: linear-gradient(135deg, #FFC832, #FF8C32);"></div>Ausstehend</div>
+                <div class="legend-item"><div class="legend-box" style="background: linear-gradient(135deg, #3b82f6, #2563eb);"></div>Urlaub</div>
+                <div class="legend-item"><div class="legend-box" style="background: linear-gradient(135deg, #991b1b, #7f1d1d);"></div>Krank</div>
+                <div class="legend-item"><div class="legend-box" style="background: linear-gradient(135deg, #9333ea, #7e22ce);"></div>Geplant Frei</div>
+            </div>
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="admin-panel" class="hidden">
+            <div class="section-card">
+                <h3 class="section-title">⚙️ Admin: Anfragen</h3>
+                <div id="admin-list"></div>
+            </div>
+            
+            <div class="section-card">
+                <h3 class="section-title">👥 User Freischaltung</h3>
+                <div id="user-approval-list"></div>
+            </div>
+        </div>
+
+        <!-- User Bookings -->
+        <div class="section-card">
+            <h3 class="section-title">📋 Meine Buchungen</h3>
+            <div id="booking-list"></div>
+        </div>
+
+    </div>
+
+    <!-- Action Bar -->
+    <div id="action-bar">
+        <div style="display: flex; gap: 0.75rem; flex-direction: column;">
+            <button onclick="bulkBookSelected()" class="action-btn" style="background: linear-gradient(135deg, #22c55e, #16a34a); color: white; box-shadow: 0 10px 30px rgba(34, 197, 94, 0.3);">
+                <span id="selection-count">0</span> Tage buchen
+            </button>
+            <button onclick="clearSelection()" class="action-btn">
+                Auswahl aufheben
+            </button>
+        </div>
+    </div>
+
+    <!-- Admin Action Bar -->
+    <div id="admin-action-bar" class="hidden" style="position: fixed; bottom: calc(20px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 9999; width: 92%; max-width: 420px;">
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+            <button onclick="adminAction('busy')" class="action-btn" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white;">BESETZT</button>
+            <button onclick="adminAction('vacation')" class="action-btn" style="background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;">URLAUB</button>
+            <button onclick="adminAction('sick')" class="action-btn" style="background: linear-gradient(135deg, #991b1b, #7f1d1d); color: white;">KRANK</button>
+            <button onclick="adminAction('planned_free')" class="action-btn" style="background: linear-gradient(135deg, #9333ea, #7e22ce); color: white;">GEPLANT FREI</button>
+            <button onclick="adminAction('frei')" class="action-btn" style="grid-column: span 2;">FREIGEBEN</button>
+            <button onclick="clearSelection()" class="action-btn" style="grid-column: span 2;">Auswahl aufheben</button>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detail-modal" class="hidden fixed inset-0 z-[10000] modal-overlay flex items-center justify-center p-4">
+        <div class="modal-content">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-zinc-400 hover:text-white font-bold text-2xl transition-colors">✕</button>
+            <h3 class="modal-header">Details</h3>
+            <p id="modal-date" class="text-sm text-zinc-400 font-semibold mb-6">DATUM</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.1);">
+                    <p style="font-size: 0.7rem; color: #888; text-transform: uppercase; font-weight: 700; margin-bottom: 0.5rem;">Gebucht von / Status</p>
+                    <p id="modal-user" style="font-size: 0.95rem; font-weight: 700; color: white;">...</p>
                 </div>
 
-                <div class="bg-zinc-900 p-4 rounded-xl border border-zinc-700">
-                    <p class="text-[10px] text-zinc-500 uppercase font-bold mb-2">Buchungsgrund (optional)</p>
-                    <p id="modal-reason-user" class="text-sm text-white italic">Keine Info</p>
+                <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.1);">
+                    <p style="font-size: 0.7rem; color: #888; text-transform: uppercase; font-weight: 700; margin-bottom: 0.5rem;">Buchungsgrund</p>
+                    <p id="modal-reason-user" style="font-size: 0.85rem; color: white; font-style: italic;">Keine Info</p>
                 </div>
 
-                <div id="admin-note-area" class="bg-zinc-900 p-4 rounded-xl border border-zinc-700">
-                    <p class="text-[10px] text-zinc-500 uppercase font-bold mb-2">Anmerkung</p>
-                    <textarea id="modal-reason-admin" class="w-full bg-zinc-800 text-white text-sm p-3 rounded-lg outline-none border-2 border-zinc-700 focus:border-yellow-500" rows="2" placeholder="Noch keine Anmerkung vorhanden..."></textarea>
-                    <button id="btn-save-note" onclick="saveAdminNote()" class="hidden w-full mt-3 bg-yellow-500 text-black text-xs font-black py-3 rounded-lg uppercase min-h-[44px]">Speichern</button>
+                <div id="admin-note-area" style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.1);">
+                    <p style="font-size: 0.7rem; color: #888; text-transform: uppercase; font-weight: 700; margin-bottom: 0.5rem;">Anmerkung</p>
+                    <textarea id="modal-reason-admin" style="width: 100%; background: rgba(255,255,255,0.08); color: white; font-size: 0.85rem; padding: 0.75rem; border-radius: 0.75rem; outline: none; border: 1px solid rgba(255,255,255,0.1); font-family: inherit;" rows="2" placeholder="Noch keine Anmerkung vorhanden..."></textarea>
+                    <button id="btn-save-note" onclick="saveAdminNote()" class="hidden btn-primary" style="margin-top: 0.75rem; padding: 0.75rem;">Speichern</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Confirmation Modal -->
-    <div id="confirm-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4">
-        <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700">
-            <h3 class="text-yellow-500 font-black uppercase text-xl mb-3">Bestätigung</h3>
-            <p id="confirm-message" class="text-base text-zinc-300 mb-6"></p>
-            <div class="flex gap-3">
-                <button onclick="cancelConfirm()" class="flex-1 bg-zinc-700 text-white py-4 rounded-xl font-bold text-base min-h-[52px]">Abbrechen</button>
-                <button id="confirm-yes-btn" onclick="confirmAction()" class="flex-1 bg-yellow-500 text-black py-4 rounded-xl font-bold text-base min-h-[52px]">Bestätigen</button>
+    <div id="confirm-modal" class="hidden fixed inset-0 z-[10000] modal-overlay flex items-center justify-center p-4">
+        <div class="modal-content">
+            <h3 class="modal-header">Bestätigung</h3>
+            <p id="confirm-message" style="font-size: 0.95rem; color: #ccc; margin-bottom: 2rem;"></p>
+            <div style="display: flex; gap: 0.75rem;">
+                <button onclick="cancelConfirm()" class="btn-glass flex-1" style="padding: 1rem;">Abbrechen</button>
+                <button id="confirm-yes-btn" onclick="confirmAction()" class="btn-primary flex-1" style="padding: 1rem;">Bestätigen</button>
             </div>
         </div>
     </div>
 
-    <!-- Input Modal (replaces prompt()) -->
-    <div id="input-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4">
-        <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700">
-            <h3 id="input-modal-title" class="text-yellow-500 font-black uppercase text-xl mb-3">Eingabe</h3>
-            <p id="input-modal-label" class="text-sm text-zinc-300 mb-3"></p>
-            <textarea id="input-modal-textarea" class="w-full bg-zinc-900 text-white p-4 rounded-xl outline-none border-2 border-zinc-700 focus:border-yellow-500 text-base" rows="3" placeholder=""></textarea>
-            <div class="flex gap-3 mt-4">
-                <button onclick="cancelInput()" class="flex-1 bg-zinc-700 text-white py-4 rounded-xl font-bold text-base min-h-[52px]">Abbrechen</button>
-                <button id="input-ok-btn" onclick="submitInput()" class="flex-1 bg-yellow-500 text-black py-4 rounded-xl font-bold text-base min-h-[52px]">OK</button>
+    <!-- Input Modal -->
+    <div id="input-modal" class="hidden fixed inset-0 z-[10000] modal-overlay flex items-center justify-center p-4">
+        <div class="modal-content">
+            <h3 id="input-modal-title" class="modal-header">Eingabe</h3>
+            <p id="input-modal-message" style="font-size: 0.9rem; color: #aaa; margin-bottom: 1.5rem;"></p>
+            <textarea id="input-modal-field" class="input-field" rows="3" style="margin-bottom: 1.5rem;"></textarea>
+            <div style="display: flex; gap: 0.75rem;">
+                <button onclick="cancelInput()" class="btn-glass flex-1" style="padding: 1rem;">Abbrechen</button>
+                <button id="input-modal-submit" onclick="submitInput()" class="btn-primary flex-1" style="padding: 1rem;">OK</button>
             </div>
-        </div>
-    </div>
-
-    <!-- LOGIN SCREEN -->
-    <div id="login-screen" class="hidden login-container">
-        <div class="login-card">
-            <div class="text-center mb-8">
-                <div class="text-5xl mb-4">📅</div>
-                <h1 class="text-3xl font-black text-yellow-500 mb-2">Springerplan</h1>
-                <p class="text-sm text-zinc-400">made by Flo v4.1</p>
-            </div>
-            
-            <div class="space-y-4">
-                <input type="email" id="email" placeholder="E-Mail" class="login-input" autocomplete="email">
-                <input type="password" id="password" placeholder="Passwort" class="login-input" autocomplete="current-password">
-                
-                <div id="signup-fields" class="hidden space-y-4">
-                    <input type="text" id="display_name" placeholder="Dein Name" class="login-input" autocomplete="name">
-                    <input type="text" id="store_number" placeholder="Filial-Nummer" class="login-input">
-                    <input type="text" id="reg_code" placeholder="Registrierungs-Code" class="login-input">
-                </div>
-                
-                <button id="auth-btn-main" onclick="handleAuthAction()" class="login-button">
-                    Login
-                </button>
-                
-                <div class="text-center mt-6">
-                    <button id="toggle-auth-btn" onclick="toggleAuthMode()" class="toggle-button">
-                        Konto erstellen
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MAIN APP -->
-    <div id="app-container" class="hidden max-w-md mx-auto p-4 pb-32">
-        
-        <!-- Header with Logout -->
-        <div class="flex justify-between items-center mb-6">
-            <div>
-                <h1 class="text-2xl font-black text-yellow-500">Springerplan</h1>
-                <p id="user-display" class="text-xs text-zinc-500"></p>
-            </div>
-            <button onclick="handleLogout()" class="bg-red-600 px-4 py-2 rounded-xl text-sm font-bold min-h-[44px]">Logout</button>
-        </div>
-
-        <!-- Admin Section: User Approvals -->
-        <div id="admin-approval-section" class="hidden mb-6 bg-zinc-900 p-5 rounded-2xl border border-zinc-800">
-            <h2 class="text-yellow-500 font-black uppercase text-sm mb-3">👤 User-Freischaltung</h2>
-            <div id="user-approval-list"></div>
-        </div>
-
-        <!-- Booking List -->
-        <div class="mb-6 bg-zinc-900 p-5 rounded-2xl border border-zinc-800">
-            <h2 class="text-yellow-500 font-black uppercase text-sm mb-3">📋 Deine Buchungen</h2>
-            <div id="booking-list"></div>
-            <button id="show-more-bookings" onclick="toggleBookingList()" class="hidden w-full mt-3 text-yellow-500 font-bold text-sm py-2 min-h-[44px]">
-                ▼ Mehr anzeigen
-            </button>
-        </div>
-
-        <!-- Admin Section: Pending Requests -->
-        <div id="admin-section" class="hidden mb-6 bg-zinc-900 p-5 rounded-2xl border border-zinc-800">
-            <h2 class="text-yellow-500 font-black uppercase text-sm mb-3">⏳ Anfragen</h2>
-            <div id="admin-list"></div>
-        </div>
-
-        <!-- Refresh Button -->
-        <div class="flex justify-center mb-3">
-            <button onclick="refreshCalendar()" class="bg-yellow-500 text-black px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 min-h-[48px]">
-                <span id="refresh-icon">🔄</span>
-                Kalender aktualisieren
-            </button>
-        </div>
-
-        <!-- Calendar -->
-        <div class="bg-zinc-900 p-5 rounded-2xl border border-zinc-800 mb-6">
-            <div class="flex justify-between items-center mb-4">
-                <button onclick="prevMonth()" class="bg-zinc-800 px-4 py-2 rounded-xl font-bold text-lg min-h-[44px] min-w-[44px]">◀</button>
-                <h2 id="month-year" class="text-lg font-black text-white"></h2>
-                <button onclick="nextMonth()" class="bg-zinc-800 px-4 py-2 rounded-xl font-bold text-lg min-h-[44px] min-w-[44px]">▶</button>
-            </div>
-            
-            <div class="day-grid text-[9px] text-zinc-500 font-bold uppercase mb-2">
-                <div class="text-center">Mo</div><div class="text-center">Di</div><div class="text-center">Mi</div><div class="text-center">Do</div><div class="text-center">Fr</div><div class="text-center">Sa</div><div class="text-center">So</div>
-            </div>
-            
-            <div id="calendar-days" class="day-grid"></div>
-        </div>
-
-        <!-- Legend -->
-        <div class="bg-zinc-900 p-5 rounded-2xl border border-zinc-800 mb-6">
-            <h3 class="text-yellow-500 font-black uppercase text-xs mb-3">Legende</h3>
-            <div class="grid grid-cols-2 gap-2">
-                <div class="legend-item"><div class="legend-box day-free"></div><span>Frei</span></div>
-                <div class="legend-item"><div class="legend-box day-busy"></div><span>Belegt</span></div>
-                <div class="legend-item"><div class="legend-box day-pending"></div><span>Anfrage</span></div>
-                <div class="legend-item"><div class="legend-box day-vacation"></div><span>Urlaub</span></div>
-                <div class="legend-item"><div class="legend-box day-sick"></div><span>Krank</span></div>
-                <div class="legend-item"><div class="legend-box day-planned-free"></div><span>Geplant Frei</span></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ACTION BAR -->
-    <div id="action-bar" class="bg-zinc-900 rounded-3xl shadow-2xl border-2 border-yellow-500/50 p-4">
-        <p class="text-center text-yellow-500 font-black text-xs uppercase mb-3"><span id="selected-count">0</span> Tage ausgewählt</p>
-        <div class="grid grid-cols-2 gap-2 mb-3">
-            <button onclick="bookSelected()" class="bg-yellow-500 text-black py-3 rounded-xl font-bold text-xs uppercase min-h-[48px]">Buchen</button>
-            <button onclick="clearSelection()" class="bg-zinc-700 text-white py-3 rounded-xl font-bold text-xs uppercase min-h-[48px]">Abbrechen</button>
-        </div>
-        <div id="admin-actions" class="hidden grid grid-cols-3 gap-2">
-            <button onclick="adminAction('urlaub')" class="bg-blue-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase min-h-[48px]">Urlaub</button>
-            <button onclick="adminAction('krank')" class="bg-red-900 text-white py-3 rounded-xl font-bold text-[10px] uppercase min-h-[48px]">Krank</button>
-            <button onclick="adminAction('geplant')" class="bg-purple-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase min-h-[48px]">Geplant</button>
-            <button onclick="adminAction('belegt')" class="bg-red-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase min-h-[48px] col-span-2">Belegt</button>
-            <button onclick="adminAction('frei')" class="bg-green-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase min-h-[48px]">Freigeben</button>
         </div>
     </div>
 
     <script>
-        const SUPABASE_URL = 'https://bskqsqoznyyrjfawedos.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJza3FzcW96bnl5cmpmd';
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        const SUPABASE_URL = 'https://njewqngqmwojsxhzycfq.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qZXdxbmdxbXdvanN4aHp5Y2ZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc5NzY2MTQsImV4cCI6MjA1MzU1MjYxNH0.HUDfg_Yd_EAa2bQ8M1Kb-6EbDnvqmxkItWU-TjDCU88';
+        const ADMIN_EMAIL = 'f.a.schneller@icloud.com';
+        const MASTER_REG_CODE = 'SPRINGER2025';
+        const EJS_PUBLIC_KEY = 'LCtgbjhvBmVnCpj0c';
+        const EJS_SERVICE = 'service_oy1k7d8';
+        const EJS_USER_TEMPLATE = 'template_jb0pjpk';
+        const EJS_ADMIN_TEMPLATE = 'template_j7vy28f';
 
-        const ADMIN_EMAIL = 'florian.hofmann-k@hotmail.com';
-        const MASTER_REG_CODE = "FLORENTINA2025";
-        
-        const EJS_PUBLIC_KEY = "mUd3CxPpfAQJ1FgYz";
-        const EJS_SERVICE = "service_g3w7snn";
-        const EJS_USER_TEMPLATE = "template_6bqjgex";
-        const EJS_ADMIN_TEMPLATE = "template_xu3cqkc";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentUser = null;
-        let currentMonth = new Date().getMonth();
-        let currentYear = new Date().getFullYear();
-        let allBookings = [];
+        let currentDate = new Date();
         let selectedDates = [];
+        let allBookings = [];
         let confirmCallback = null;
         let inputCallback = null;
-
-        // Booking list collapse state
-        let bookingListExpanded = false;
-        const MAX_VISIBLE_BOOKINGS = 5;
 
         // ============================================
         // INITIALIZATION
         // ============================================
-
-        window.addEventListener('DOMContentLoaded', async () => {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (!session) {
-                document.getElementById('login-screen').classList.remove('hidden');
-            } else {
-                currentUser = session.user;
-                const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
-                
-                if (profile && !profile.is_approved) {
-                    showToast('⏳ Dein Account wartet noch auf Freischaltung', 'info');
-                    await supabaseClient.auth.signOut();
-                    document.getElementById('login-screen').classList.remove('hidden');
-                } else {
-                    currentUser.display_name = profile?.display_name || currentUser.email;
-                    currentUser.store_number = profile?.store_number || '';
-                    document.getElementById('app-container').classList.remove('hidden');
-                    document.getElementById('user-display').innerText = `${currentUser.display_name} (Filiale ${currentUser.store_number})`;
-                    
-                    if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                        document.getElementById('admin-section').classList.remove('hidden');
-                        document.getElementById('admin-approval-section').classList.remove('hidden');
-                        document.getElementById('admin-actions').classList.remove('hidden');
-                        renderUserApproval();
-                    }
-                    
-                    fetchAndRender();
-                    setupRealtimeSubscription();
-                }
-            }
-
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Network status
             window.addEventListener('online', () => document.getElementById('offline-indicator').classList.add('hidden'));
             window.addEventListener('offline', () => document.getElementById('offline-indicator').classList.remove('hidden'));
-        });
-
-        function setupRealtimeSubscription() {
-            supabaseClient.channel('bookings-channel').on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, fetchAndRender).subscribe();
-        }
-
-        async function fetchAndRender() {
-            const { data } = await supabaseClient.from('bookings').select('*');
-            allBookings = data || [];
-            renderCalendar();
-            renderLists(allBookings);
-            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) renderUserApproval();
-        }
-
-        // ============================================
-        // REFRESH CALENDAR
-        // ============================================
-        
-        function refreshCalendar() {
-            const icon = document.getElementById('refresh-icon');
-            icon.classList.add('refresh-spinning');
             
-            fetchAndRender();
+            // Check auth state
+            const { data: { user } } = await supabaseClient.auth.getUser();
             
-            setTimeout(() => {
-                icon.classList.remove('refresh-spinning');
-                showToast('✅ Kalender aktualisiert', 'success');
-            }, 600);
-        }
-
-        // ============================================
-        // BOOKING LIST COLLAPSE/EXPAND
-        // ============================================
-
-        function toggleBookingList() {
-            bookingListExpanded = !bookingListExpanded;
-            const button = document.getElementById('show-more-bookings');
-            const items = document.querySelectorAll('.booking-item');
-            
-            if (bookingListExpanded) {
-                items.forEach(item => item.classList.remove('collapsed'));
-                button.innerHTML = '▲ Weniger anzeigen';
+            if (!user) {
+                document.getElementById('login-screen').classList.remove('hidden');
             } else {
-                items.forEach((item, index) => {
-                    if (index >= MAX_VISIBLE_BOOKINGS) {
-                        item.classList.add('collapsed');
-                    }
-                });
-                button.innerHTML = '▼ Mehr anzeigen';
+                const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
+                if (!profile || !profile.is_approved) {
+                    showToast('⏳ Dein Account wartet auf Freischaltung', 'info');
+                    document.getElementById('login-screen').classList.remove('hidden');
+                    return;
+                }
+                currentUser = { ...user, ...profile };
+                document.getElementById('app-container').classList.remove('hidden');
+                document.getElementById('user-greeting').innerText = `Hallo, ${currentUser.display_name}! 👋`;
+                
+                if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                    document.getElementById('admin-panel').classList.remove('hidden');
+                    renderUserApproval();
+                }
+                
+                fetchAndRender();
             }
-        }
+            
+            // Subscribe to changes
+            supabaseClient.channel('bookings-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchAndRender()).subscribe();
+        });
 
         // ============================================
         // CALENDAR RENDERING
         // ============================================
+        
+        async function fetchAndRender() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startStr = firstDay.toISOString().split('T')[0];
+            const endStr = lastDay.toISOString().split('T')[0];
+            
+            const { data } = await supabaseClient.from('bookings').select('*').gte('requested_date', startStr).lte('requested_date', endStr);
+            allBookings = data || [];
+            renderCalendar();
+            renderLists(allBookings);
+        }
 
         function renderCalendar() {
-            const firstDay = new Date(currentYear, currentMonth, 1);
-            const lastDay = new Date(currentYear, currentMonth + 1, 0);
-            const startOffset = (firstDay.getDay() + 6) % 7;
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startDayOfWeek = (firstDay.getDay() + 6) % 7;
             
-            const monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
-            document.getElementById('month-year').innerText = `${monthNames[currentMonth]} ${currentYear}`;
+            document.getElementById('calendar-month-year').innerText = firstDay.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
             
-            const container = document.getElementById('calendar-days');
-            container.innerHTML = '';
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
             
-            for (let i = 0; i < startOffset; i++) container.innerHTML += '<div></div>';
+            for (let i = 0; i < startDayOfWeek; i++) {
+                const emptyCell = document.createElement('div');
+                grid.appendChild(emptyCell);
+            }
             
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             
             for (let day = 1; day <= lastDay.getDate(); day++) {
-                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const currentDateLoop = new Date(year, month, day);
+                const dateStr = currentDateLoop.toISOString().split('T')[0];
                 const dayBookings = allBookings.filter(b => b.requested_date === dateStr);
-                const dateObj = new Date(currentYear, currentMonth, day);
                 
-                let classes = 'calendar-day ';
-                let storeLabels = '';
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'calendar-day';
+                dayDiv.innerText = day;
                 
-                if (dateObj < today) {
-                    classes += 'day-disabled';
-                } else if (dayBookings.length === 0) {
-                    classes += 'day-free';
-                } else {
-                    const statuses = dayBookings.map(b => b.status);
-                    if (statuses.includes('confirmed')) {
-                        classes += 'day-busy';
-                        const stores = [...new Set(dayBookings.filter(b => b.status === 'confirmed').map(b => b.store_number))];
-                        storeLabels = stores.map(s => `<div class="store-label">F${s}</div>`).join('');
-                    } else if (statuses.includes('pending')) {
-                        classes += 'day-pending';
-                    } else if (statuses.includes('vacation')) {
-                        classes += 'day-vacation';
-                    } else if (statuses.includes('sick')) {
-                        classes += 'day-sick';
-                    } else if (statuses.includes('planned_free')) {
-                        classes += 'day-planned-free';
+                const isPast = currentDateLoop < today;
+                
+                if (isPast) {
+                    dayDiv.classList.add('day-disabled');
+                } else if (dayBookings.length > 0) {
+                    const booking = dayBookings[0];
+                    if (booking.status === 'confirmed') dayDiv.classList.add('day-busy');
+                    else if (booking.status === 'pending') dayDiv.classList.add('day-pending');
+                    else if (booking.type === 'vacation') dayDiv.classList.add('day-vacation');
+                    else if (booking.type === 'sick') dayDiv.classList.add('day-sick');
+                    else if (booking.type === 'planned_free') dayDiv.classList.add('day-planned-free');
+                    
+                    if (booking.store_number) {
+                        const label = document.createElement('div');
+                        label.className = 'store-label';
+                        label.innerText = `F${booking.store_number}`;
+                        dayDiv.appendChild(label);
                     }
+                    
+                    dayDiv.onclick = () => openModal(booking);
+                } else {
+                    dayDiv.classList.add('day-free');
+                    dayDiv.onclick = () => toggleDateSelection(dateStr, dayDiv);
                 }
                 
-                if (selectedDates.includes(dateStr)) classes += ' day-selected';
+                if (selectedDates.includes(dateStr)) {
+                    dayDiv.classList.add('day-selected');
+                }
                 
-                container.innerHTML += `<div class="${classes}" data-date="${dateStr}" onclick="handleDayClick('${dateStr}')"><div>${day}</div>${storeLabels}</div>`;
+                grid.appendChild(dayDiv);
             }
+            
+            updateActionBar();
         }
 
-        function prevMonth() { if (currentMonth === 0) { currentMonth = 11; currentYear--; } else currentMonth--; renderCalendar(); }
-        function nextMonth() { if (currentMonth === 11) { currentMonth = 0; currentYear++; } else currentMonth++; renderCalendar(); }
+        function changeMonth(delta) {
+            currentDate.setMonth(currentDate.getMonth() + delta);
+            clearSelection();
+            fetchAndRender();
+        }
 
-        function handleDayClick(dateStr) {
-            const dateObj = new Date(dateStr);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            if (dateObj < today) return;
-
-            const dayBookings = allBookings.filter(b => b.requested_date === dateStr);
-            
-            if (dayBookings.length > 0) {
-                openModal(dayBookings[0]);
+        // ============================================
+        // DATE SELECTION
+        // ============================================
+        
+        function toggleDateSelection(dateStr, element) {
+            if (selectedDates.includes(dateStr)) {
+                selectedDates = selectedDates.filter(d => d !== dateStr);
+                element.classList.remove('day-selected');
             } else {
-                if (selectedDates.includes(dateStr)) {
-                    selectedDates = selectedDates.filter(d => d !== dateStr);
-                } else {
-                    selectedDates.push(dateStr);
-                }
-                updateActionBar();
-                renderCalendar();
+                selectedDates.push(dateStr);
+                element.classList.add('day-selected');
             }
+            updateActionBar();
         }
 
         function clearSelection() {
             selectedDates = [];
+            document.querySelectorAll('.day-selected').forEach(el => el.classList.remove('day-selected'));
             updateActionBar();
-            renderCalendar();
         }
 
         function updateActionBar() {
-            const bar = document.getElementById('action-bar');
-            const count = document.getElementById('selected-count');
-            count.innerText = selectedDates.length;
+            const isAdmin = currentUser && currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+            const bar = document.getElementById(isAdmin ? 'admin-action-bar' : 'action-bar');
+            const count = document.getElementById('selection-count');
             
             if (selectedDates.length > 0) {
                 bar.classList.add('visible');
+                if (count) count.innerText = selectedDates.length;
             } else {
                 bar.classList.remove('visible');
             }
         }
 
         // ============================================
-        // BOOKING ACTIONS
+        // BOOKING FUNCTIONS
         // ============================================
-
-        async function bookSelected() {
+        
+        async function bulkBookSelected() {
             if (selectedDates.length === 0) return;
             
             showInput(
                 'Buchung erstellen',
-                'Grund für die Buchung (optional):',
-                'z.B. "Familienfeier", "Arzttermin"...',
+                `${selectedDates.length} Tage buchen. Optional: Grund angeben`,
+                'z.B. "Wichtiger Termin"',
                 async (reason) => {
-                    const bookings = selectedDates.map(date => ({
+                    const inserts = selectedDates.map(d => ({
                         user_id: currentUser.id,
                         user_email: currentUser.email,
                         display_name: currentUser.display_name,
                         store_number: currentUser.store_number,
-                        requested_date: date,
+                        requested_date: d,
                         status: 'pending',
+                        type: 'booking',
                         reason_user: reason || null
                     }));
                     
-                    await supabaseClient.from('bookings').insert(bookings);
+                    await supabaseClient.from('bookings').insert(inserts);
                     
                     emailjs.init(EJS_PUBLIC_KEY);
+                    const dateList = selectedDates.join(', ');
                     await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, {
                         user_name: currentUser.display_name,
                         store_number: currentUser.store_number,
-                        date: selectedDates.join(', '),
+                        date: dateList,
                         reason: reason || 'Kein Grund angegeben'
                     });
                     
-                    showToast('✅ Buchung eingereicht', 'success');
+                    showToast('✅ Anfrage gesendet!', 'success');
                     clearSelection();
+                    fetchAndRender();
                 }
             );
         }
 
         // ============================================
-        // MODAL FUNCTIONS
+        // ADMIN FUNCTIONS
         // ============================================
-
-        function openModal(booking) {
-            document.getElementById('detail-modal').classList.remove('hidden');
-            document.getElementById('modal-date').innerText = new Date(booking.requested_date + 'T00:00:00').toLocaleDateString('de-DE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            
-            let statusText = booking.status.toUpperCase();
-            if (booking.status === 'confirmed') statusText = 'BESTÄTIGT';
-            else if (booking.status === 'pending') statusText = 'AUSSTEHEND';
-            else if (booking.status === 'rejected') statusText = 'ABGELEHNT';
-            else if (booking.status === 'vacation') statusText = 'URLAUB';
-            else if (booking.status === 'sick') statusText = 'KRANK';
-            else if (booking.status === 'planned_free') statusText = 'GEPLANT FREI';
-            
-            document.getElementById('modal-user').innerText = `${booking.display_name || 'Unbekannt'} (${statusText})`;
-            document.getElementById('modal-reason-user').innerText = booking.reason_user || 'Keine Info';
-            document.getElementById('modal-reason-admin').value = booking.reason_admin || '';
-            
-            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                document.getElementById('admin-note-area').classList.remove('hidden');
-                const saveBtn = document.getElementById('btn-save-note');
-                saveBtn.classList.remove('hidden');
-                saveBtn.onclick = () => saveAdminNote(booking.id);
-            } else {
-                document.getElementById('admin-note-area').classList.add('hidden');
-            }
-            
-            window.currentModalBooking = booking;
-        }
-
-        function closeModal() {
-            document.getElementById('detail-modal').classList.add('hidden');
-        }
-
-        async function saveAdminNote(bookingId = null) {
-            const note = document.getElementById('modal-reason-admin').value;
-            const id = bookingId || window.currentModalBooking.id;
-            await supabaseClient.from('bookings').update({ reason_admin: note }).eq('id', id);
-            showToast('✅ Anmerkung gespeichert', 'success');
-            closeModal();
-            fetchAndRender();
-        }
-
-        // ============================================
-        // CONFIRM MODAL
-        // ============================================
-
-        function showConfirm(message, callback) {
-            document.getElementById('confirm-message').innerText = message;
-            document.getElementById('confirm-modal').classList.remove('hidden');
-            confirmCallback = callback;
-        }
-
-        function cancelConfirm() {
-            document.getElementById('confirm-modal').classList.add('hidden');
-            confirmCallback = null;
-        }
-
-        async function confirmAction() {
-            document.getElementById('confirm-modal').classList.add('hidden');
-            if (confirmCallback) {
-                await confirmCallback();
-                confirmCallback = null;
-            }
-        }
-
-        // ============================================
-        // INPUT MODAL
-        // ============================================
-
-        function showInput(title, label, placeholder, callback) {
-            document.getElementById('input-modal-title').innerText = title;
-            document.getElementById('input-modal-label').innerText = label;
-            document.getElementById('input-modal-textarea').placeholder = placeholder;
-            document.getElementById('input-modal-textarea').value = '';
-            document.getElementById('input-modal').classList.remove('hidden');
-            inputCallback = callback;
-        }
-
-        function cancelInput() {
-            document.getElementById('input-modal').classList.add('hidden');
-            inputCallback = null;
-        }
-
-        async function submitInput() {
-            const value = document.getElementById('input-modal-textarea').value;
-            document.getElementById('input-modal').classList.add('hidden');
-            if (inputCallback) {
-                await inputCallback(value);
-                inputCallback = null;
-            }
-        }
-
-        // ============================================
-        // TOAST NOTIFICATIONS
-        // ============================================
-
-        function showToast(message, type = 'success') {
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.innerText = message;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        }
-
-        // ============================================
-        // ADMIN ACTIONS
-        // ============================================
-
-        function setBtnLoading(btnId, loading, text = '') {
-            const btn = document.getElementById(btnId);
-            if (loading) {
-                btn.classList.add('btn-loading');
-                btn.innerHTML = `<span class="spinner"></span>${text}`;
-            } else {
-                btn.classList.remove('btn-loading');
-                btn.innerHTML = text;
-            }
-        }
-
+        
         function adminAction(type) {
             if (selectedDates.length === 0) return;
             
-            const insData = (status, reason, name) => selectedDates.map(d => ({
+            const insData = (t, display, by) => selectedDates.map(d => ({
                 user_id: currentUser.id,
-                user_email: currentUser.email,
-                display_name: name,
+                user_email: ADMIN_EMAIL,
+                display_name: display,
                 store_number: currentUser.store_number,
                 requested_date: d,
-                status: status,
-                reason_admin: reason
+                status: 'confirmed',
+                type: t,
+                reason_admin: `Eingetragen von ${by}`
             }));
-
-            if (type === 'urlaub') {
+            
+            if (type === 'busy') {
+                showConfirm(
+                    `${selectedDates.length} Tage als BESETZT markieren?`,
+                    async () => {
+                        await supabaseClient.from('bookings').insert(insData('booking', 'BESETZT', 'Admin'));
+                        showToast('✅ Als Besetzt markiert', 'success');
+                        clearSelection();
+                    }
+                );
+            } else if (type === 'vacation') {
                 showConfirm(
                     `${selectedDates.length} Tage als URLAUB markieren?`,
                     async () => {
-                        await supabaseClient.from('bookings').insert(insData('vacation', 'Urlaub', 'Admin'));
-                        showToast('✅ Urlaub eingetragen', 'success');
+                        await supabaseClient.from('bookings').insert(insData('vacation', 'URLAUB', 'Admin'));
+                        showToast('✅ Als Urlaub markiert', 'success');
                         clearSelection();
                     }
                 );
-            } else if (type === 'krank') {
+            } else if (type === 'sick') {
                 showConfirm(
                     `${selectedDates.length} Tage als KRANK markieren?`,
                     async () => {
-                        await supabaseClient.from('bookings').insert(insData('sick', 'Krank', 'Admin'));
-                        showToast('✅ Krankmeldung eingetragen', 'success');
+                        await supabaseClient.from('bookings').insert(insData('sick', 'KRANK', 'Admin'));
+                        showToast('✅ Als Krank markiert', 'success');
                         clearSelection();
                     }
                 );
-            } else if (type === 'belegt') {
-                showInput(
-                    'Tag(e) belegen',
-                    'Filial-Nummer:',
-                    'z.B. "42"',
-                    async (store) => {
-                        await supabaseClient.from('bookings').insert(insData('confirmed', `Belegt durch Admin (Filiale ${store})`, `Filiale ${store}`));
-                        showToast('✅ Tag(e) als belegt markiert', 'success');
-                        clearSelection();
-                    }
-                );
-            } else if (type === 'geplant') {
+            } else if (type === 'planned_free') {
                 showConfirm(
                     `${selectedDates.length} Tage als GEPLANT FREI markieren?`,
                     async () => {
@@ -801,12 +1054,21 @@
             const list = document.getElementById('user-approval-list');
             const { data: users } = await supabaseClient.from('profiles').select('*').eq('is_approved', false);
             if (!users || users.length === 0) { 
-                list.innerHTML = '<p class="text-xs text-zinc-600">Keine neuen User</p>'; 
+                list.innerHTML = '<p style="font-size: 0.75rem; color: #666;">Keine neuen User</p>'; 
                 return; 
             }
             list.innerHTML = '';
             users.forEach(u => {
-                list.innerHTML += `<div class="bg-white text-black p-4 rounded-xl flex justify-between items-center mb-3"><div class="text-left font-black text-sm">${u.display_name}<br><span class="font-normal text-xs">Filiale ${u.store_number}</span></div><button onclick="approveUser('${u.id}')" class="bg-blue-600 text-white px-4 py-3 rounded-lg font-black uppercase text-xs min-h-[44px]">OK</button></div>`;
+                const userCard = document.createElement('div');
+                userCard.style.cssText = 'background: rgba(255,255,255,0.08); padding: 1rem; border-radius: 1rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; border: 1px solid rgba(255,255,255,0.1);';
+                userCard.innerHTML = `
+                    <div style="font-weight: 700; font-size: 0.85rem;">
+                        ${u.display_name}<br>
+                        <span style="font-weight: 400; color: #888; font-size: 0.75rem;">Filiale ${u.store_number}</span>
+                    </div>
+                    <button onclick="approveUser('${u.id}')" class="btn-primary" style="padding: 0.75rem 1.25rem; font-size: 0.75rem;">OK</button>
+                `;
+                list.appendChild(userCard);
             });
         }
 
@@ -817,34 +1079,45 @@
         }
 
         function renderLists(data) {
-            const uL = document.getElementById('booking-list'), aL = document.getElementById('admin-list');
+            const uL = document.getElementById('booking-list');
+            const aL = document.getElementById('admin-list');
             uL.innerHTML = ''; 
+            
             const pending = data.filter(x => x.status === 'pending');
             
             if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                aL.innerHTML = pending.length ? '' : '<p class="text-xs text-zinc-600">Keine Anfragen</p>';
+                aL.innerHTML = pending.length ? '' : '<p style="font-size: 0.75rem; color: #666;">Keine Anfragen</p>';
                 pending.forEach(b => {
-                    aL.innerHTML += `<div class="bg-white text-black p-4 rounded-2xl flex justify-between items-center text-sm font-bold mb-3"><div>${b.requested_date}<br><span class="text-zinc-500 text-xs">${b.display_name}</span></div><div class="flex gap-2"><button onclick="processRequest(this, '${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-4 py-3 rounded-lg min-h-[44px] min-w-[44px]">✓</button><button onclick="processRequest(this, '${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-4 py-3 rounded-lg min-h-[44px] min-w-[44px]">X</button></div></div>`;
+                    const reqCard = document.createElement('div');
+                    reqCard.style.cssText = 'background: rgba(255,255,255,0.08); padding: 1rem; border-radius: 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 700; margin-bottom: 0.75rem; border: 1px solid rgba(255,255,255,0.1);';
+                    reqCard.innerHTML = `
+                        <div>
+                            ${b.requested_date}<br>
+                            <span style="color: #888; font-size: 0.75rem;">${b.display_name}</span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button onclick="processRequest(this, '${b.id}','confirmed','${b.user_email}','${b.requested_date}')" style="background: #22c55e; color: white; padding: 0.5rem 1rem; border-radius: 0.75rem; font-weight: 700; border: none; cursor: pointer;">✓</button>
+                            <button onclick="processRequest(this, '${b.id}','rejected','${b.user_email}','${b.requested_date}')" style="background: #ef4444; color: white; padding: 0.5rem 1rem; border-radius: 0.75rem; font-weight: 700; border: none; cursor: pointer;">✕</button>
+                        </div>
+                    `;
+                    aL.appendChild(reqCard);
                 });
             }
             
             const userBookings = data.filter(x => x.user_id === currentUser.id).sort((a,b) => b.requested_date.localeCompare(a.requested_date));
             if (userBookings.length === 0) {
-                uL.innerHTML = '<p class="text-xs text-zinc-600">Noch keine Buchungen</p>';
-                document.getElementById('show-more-bookings').classList.add('hidden');
+                uL.innerHTML = '<p style="font-size: 0.75rem; color: #666;">Noch keine Buchungen</p>';
             } else {
-                userBookings.forEach((b, index) => {
-                    const isCollapsed = index >= MAX_VISIBLE_BOOKINGS && !bookingListExpanded;
-                    const collapsedClass = isCollapsed ? 'collapsed' : '';
-                    uL.innerHTML += `<div onclick='openModal(${JSON.stringify(b)})' class="booking-item ${collapsedClass} p-4 bg-zinc-800/30 rounded-2xl flex justify-between items-center text-sm font-bold border border-zinc-800 cursor-pointer mb-3"><div>${b.requested_date}</div><div class="uppercase text-yellow-500 text-xs">${b.status}</div></div>`;
+                userBookings.forEach(b => {
+                    const bookCard = document.createElement('div');
+                    bookCard.style.cssText = 'padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; margin-bottom: 0.75rem;';
+                    bookCard.onclick = () => openModal(b);
+                    bookCard.innerHTML = `
+                        <div>${b.requested_date}</div>
+                        <div style="text-transform: uppercase; color: #FFC832; font-size: 0.75rem;">${b.status}</div>
+                    `;
+                    uL.appendChild(bookCard);
                 });
-                
-                if (userBookings.length > MAX_VISIBLE_BOOKINGS) {
-                    document.getElementById('show-more-bookings').classList.remove('hidden');
-                    document.getElementById('show-more-bookings').innerHTML = bookingListExpanded ? '▲ Weniger anzeigen' : '▼ Mehr anzeigen';
-                } else {
-                    document.getElementById('show-more-bookings').classList.add('hidden');
-                }
             }
         }
 
@@ -873,7 +1146,6 @@
                     }
                 );
             } else {
-                // Bestätigung
                 btn.innerText = '..';
                 await supabaseClient.from('bookings').update({ status }).eq('id', id);
                 
@@ -892,32 +1164,163 @@
         }
 
         // ============================================
+        // MODAL FUNCTIONS
+        // ============================================
+        
+        function openModal(booking) {
+            document.getElementById('modal-date').innerText = booking.requested_date;
+            document.getElementById('modal-user').innerText = `${booking.display_name} (${booking.status.toUpperCase()})`;
+            document.getElementById('modal-reason-user').innerText = booking.reason_user || 'Keine Info';
+            
+            const adminArea = document.getElementById('admin-note-area');
+            const adminField = document.getElementById('modal-reason-admin');
+            const saveBtn = document.getElementById('btn-save-note');
+            
+            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                adminArea.classList.remove('hidden');
+                adminField.value = booking.reason_admin || '';
+                adminField.dataset.bookingId = booking.id;
+                
+                adminField.oninput = () => {
+                    saveBtn.classList.remove('hidden');
+                };
+            } else {
+                adminArea.classList.add('hidden');
+            }
+            
+            document.getElementById('detail-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('detail-modal').classList.add('hidden');
+        }
+
+        async function saveAdminNote() {
+            const field = document.getElementById('modal-reason-admin');
+            const bookingId = field.dataset.bookingId;
+            const note = field.value;
+            
+            await supabaseClient.from('bookings').update({ reason_admin: note }).eq('id', bookingId);
+            showToast('✅ Anmerkung gespeichert', 'success');
+            document.getElementById('btn-save-note').classList.add('hidden');
+            fetchAndRender();
+        }
+
+        // ============================================
+        // CONFIRM & INPUT MODALS
+        // ============================================
+        
+        function showConfirm(message, callback) {
+            document.getElementById('confirm-message').innerText = message;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+            confirmCallback = callback;
+        }
+
+        function confirmAction() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            if (confirmCallback) {
+                confirmCallback();
+                confirmCallback = null;
+            }
+        }
+
+        function cancelConfirm() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            confirmCallback = null;
+        }
+
+        function showInput(title, message, placeholder, callback) {
+            document.getElementById('input-modal-title').innerText = title;
+            document.getElementById('input-modal-message').innerText = message;
+            document.getElementById('input-modal-field').placeholder = placeholder;
+            document.getElementById('input-modal-field').value = '';
+            document.getElementById('input-modal').classList.remove('hidden');
+            inputCallback = callback;
+        }
+
+        function submitInput() {
+            const value = document.getElementById('input-modal-field').value;
+            document.getElementById('input-modal').classList.add('hidden');
+            if (inputCallback) {
+                inputCallback(value);
+                inputCallback = null;
+            }
+        }
+
+        function cancelInput() {
+            document.getElementById('input-modal').classList.add('hidden');
+            inputCallback = null;
+        }
+
+        // ============================================
+        // TOAST NOTIFICATIONS
+        // ============================================
+        
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // ============================================
         // AUTH FUNCTIONS
         // ============================================
+        
+        function setBtnLoading(id, isLoading, text = '...') {
+            const btn = document.getElementById(id);
+            if (isLoading) {
+                btn.classList.add('btn-loading');
+                btn.innerHTML = `<span class="spinner"></span>${text}`;
+            } else {
+                btn.classList.remove('btn-loading');
+            }
+        }
 
         async function handleAuthAction() {
             setBtnLoading('auth-btn-main', true, "...");
-            const email = document.getElementById('email').value, password = document.getElementById('password').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
             try {
                 if (document.getElementById('signup-fields').classList.contains('hidden')) {
+                    // Login
                     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                    if (error) throw error; 
-                    else location.reload();
+                    if (error) throw error;
+                    location.reload();
                 } else {
+                    // Register
                     const name = document.getElementById('display_name').value;
                     const store = document.getElementById('store_number').value;
                     const code = document.getElementById('reg_code').value;
+                    
                     if (code.toUpperCase() !== MASTER_REG_CODE) throw new Error("Registrierungs-Code falsch");
-                    const { error } = await supabaseClient.auth.signUp({ email, password, options: { data: { display_name: name, store_number: store } } });
+                    
+                    const { error } = await supabaseClient.auth.signUp({ 
+                        email, 
+                        password, 
+                        options: { 
+                            data: { display_name: name, store_number: store } 
+                        } 
+                    });
+                    
                     if (error) throw error;
+                    
                     emailjs.init(EJS_PUBLIC_KEY);
-                    await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: name, store_number: store, date: "NEUE ANMELDUNG", reason: "Wartet auf Freischaltung" });
+                    await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { 
+                        user_name: name, 
+                        store_number: store, 
+                        date: "NEUE ANMELDUNG", 
+                        reason: "Wartet auf Freischaltung" 
+                    });
+                    
                     showToast('✅ Registriert! Warte auf Freischaltung.', 'success');
-                    location.reload(); 
+                    location.reload();
                 }
             } catch (err) { 
                 showToast('❌ ' + err.message, 'error');
-                setBtnLoading('auth-btn-main', false, document.getElementById('signup-fields').classList.contains('hidden') ? 'Login' : 'Registrieren'); 
+                setBtnLoading('auth-btn-main', false); 
             }
         }
 
