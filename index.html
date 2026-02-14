@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V4.1</title>
+    <title>Springerplan made by Flo - V4.2</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -208,7 +208,7 @@
                 <div class="text-center mb-8">
                     <div class="text-6xl mb-4">📅</div>
                     <h1 class="text-3xl font-black text-yellow-500 mb-1">SPRINGERPLAN</h1>
-                    <p class="text-zinc-500 text-xs font-bold uppercase">V4.1</p>
+                    <p class="text-zinc-500 text-xs font-bold uppercase">V4.2</p>
                 </div>
                 
                 <div class="bg-zinc-900 p-6 rounded-[2rem] shadow-2xl border border-zinc-800">
@@ -459,38 +459,61 @@
         // ============================================
 
         function setupRealtimeUpdates() {
-            // Unsubscribe from previous channel if exists
-            if (realtimeChannel) {
-                supabaseClient.removeChannel(realtimeChannel);
-            }
+            try {
+                // Unsubscribe from previous channel if exists
+                if (realtimeChannel) {
+                    supabaseClient.removeChannel(realtimeChannel);
+                }
 
-            // Subscribe to bookings table changes
-            realtimeChannel = supabaseClient
-                .channel('bookings-changes')
-                .on(
-                    'postgres_changes',
-                    { event: '*', schema: 'public', table: 'bookings' },
-                    async (payload) => {
-                        console.log('Realtime update:', payload);
-                        
-                        // Silently refresh data in background
-                        await fetchAndRender(true); // true = silent mode, no toast
-                    }
-                )
-                .subscribe();
-
-            // Also listen to profile changes for admin
-            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                supabaseClient
-                    .channel('profile-changes')
+                // Subscribe to bookings table changes
+                realtimeChannel = supabaseClient
+                    .channel('bookings-changes')
                     .on(
                         'postgres_changes',
-                        { event: '*', schema: 'public', table: 'profiles' },
-                        async () => {
-                            await fetchAndRender(true);
+                        { event: '*', schema: 'public', table: 'bookings' },
+                        async (payload) => {
+                            console.log('Realtime update:', payload);
+                            
+                            // Silently refresh data in background
+                            try {
+                                await fetchAndRender(true); // true = silent mode, no toast
+                            } catch (err) {
+                                console.error('Error during realtime refresh:', err);
+                            }
                         }
                     )
-                    .subscribe();
+                    .subscribe((status) => {
+                        if (status === 'SUBSCRIBED') {
+                            console.log('✅ Realtime updates aktiv');
+                        } else if (status === 'CHANNEL_ERROR') {
+                            console.warn('⚠️ Realtime updates nicht verfügbar - Pull-to-Refresh nutzen');
+                        }
+                    });
+
+                // Also listen to profile changes for admin
+                if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                    supabaseClient
+                        .channel('profile-changes')
+                        .on(
+                            'postgres_changes',
+                            { event: '*', schema: 'public', table: 'profiles' },
+                            async () => {
+                                try {
+                                    await fetchAndRender(true);
+                                } catch (err) {
+                                    console.error('Error during profile refresh:', err);
+                                }
+                            }
+                        )
+                        .subscribe((status) => {
+                            if (status === 'SUBSCRIBED') {
+                                console.log('✅ Profile updates aktiv');
+                            }
+                        });
+                }
+            } catch (err) {
+                // Realtime is optional - app works fine with pull-to-refresh
+                console.warn('Realtime updates konnten nicht aktiviert werden:', err);
             }
         }
 
@@ -499,51 +522,81 @@
         // ============================================
 
         async function checkAuth() {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (!session) {
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) {
+                    document.getElementById('auth-screen').classList.remove('hidden');
+                    return;
+                }
+
+                currentUser = session.user;
+                const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+
+                if (error) {
+                    console.error('Profil-Fehler:', error);
+                    showToast('❌ Fehler beim Laden des Profils', 'error');
+                    await supabaseClient.auth.signOut();
+                    document.getElementById('auth-screen').classList.remove('hidden');
+                    return;
+                }
+
+                if (!profile || !profile.is_approved) {
+                    showToast('⏳ Dein Account wurde noch nicht freigeschaltet.', 'warning');
+                    await supabaseClient.auth.signOut();
+                    document.getElementById('auth-screen').classList.remove('hidden');
+                    return;
+                }
+
+                document.getElementById('user-display-name').innerText = profile.display_name || currentUser.email;
+                document.getElementById('user-store-info').innerText = `Filiale ${profile.store_number || '—'}`;
+
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+
+                if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                    document.getElementById('admin-warning-banner').classList.remove('hidden');
+                }
+
+                await fetchAndRender();
+                
+                // Setup realtime updates after initial load (optional, doesn't block app)
+                setupRealtimeUpdates();
+            } catch (err) {
+                console.error('Auth-Fehler:', err);
+                showToast('❌ Verbindungsfehler - Bitte erneut versuchen', 'error');
                 document.getElementById('auth-screen').classList.remove('hidden');
-                return;
             }
-
-            currentUser = session.user;
-            const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
-
-            if (!profile || !profile.is_approved) {
-                showToast('⏳ Dein Account wurde noch nicht freigeschaltet.', 'warning');
-                await supabaseClient.auth.signOut();
-                document.getElementById('auth-screen').classList.remove('hidden');
-                return;
-            }
-
-            document.getElementById('user-display-name').innerText = profile.display_name || currentUser.email;
-            document.getElementById('user-store-info').innerText = `Filiale ${profile.store_number || '—'}`;
-
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('dashboard').classList.remove('hidden');
-
-            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                document.getElementById('admin-warning-banner').classList.remove('hidden');
-            }
-
-            await fetchAndRender();
-            
-            // Setup realtime updates after initial load
-            setupRealtimeUpdates();
         }
 
         async function fetchAndRender(silent = false) {
-            const { data } = await supabaseClient.from('bookings').select('*');
-            allBookings = data || [];
-            renderCalendar();
-            renderLists(allBookings);
+            try {
+                const { data, error } = await supabaseClient.from('bookings').select('*');
+                
+                if (error) {
+                    console.error('Fehler beim Laden der Buchungen:', error);
+                    if (!silent) {
+                        showToast('⚠️ Daten konnten nicht geladen werden', 'error');
+                    }
+                    return;
+                }
+                
+                allBookings = data || [];
+                renderCalendar();
+                renderLists(allBookings);
 
-            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                await renderUserApproval();
-            }
+                if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                    await renderUserApproval();
+                }
 
-            if (!silent) {
-                // Only show toast if not silent
-                // (silent is used for background realtime updates)
+                if (!silent) {
+                    // Only show toast if not silent
+                    // (silent is used for background realtime updates)
+                }
+            } catch (err) {
+                console.error('Netzwerkfehler:', err);
+                if (!silent) {
+                    showToast('❌ Netzwerkfehler - Bitte Pull-to-Refresh verwenden', 'error');
+                }
             }
         }
 
@@ -1055,10 +1108,15 @@
         }
 
         async function handleLogout() { 
-            // Cleanup realtime subscriptions
-            if (realtimeChannel) {
-                await supabaseClient.removeChannel(realtimeChannel);
+            try {
+                // Cleanup realtime subscriptions
+                if (realtimeChannel) {
+                    await supabaseClient.removeChannel(realtimeChannel);
+                }
+            } catch (err) {
+                console.warn('Fehler beim Cleanup:', err);
             }
+            
             await supabaseClient.auth.signOut(); 
             location.reload(); 
         }
