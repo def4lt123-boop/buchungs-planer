@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V4.0</title>
+    <title>Springerplan made by Flo - V4.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -93,10 +93,55 @@
             z-index: 10002;
             animation: pulse 2s infinite;
         }
+
+        /* Pull-to-Refresh Styles */
+        .pull-to-refresh {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(180deg, #18181b 0%, transparent 100%);
+            z-index: 9998;
+            opacity: 0;
+            transform: translateY(-60px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+        .pull-to-refresh.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .pull-to-refresh.refreshing {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Collapsible List Styles */
+        .booking-item-hidden {
+            display: none;
+        }
+        .expand-button {
+            transition: all 0.2s ease;
+        }
+        .expand-button:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body class="bg-black text-white font-sans overflow-x-hidden">
     
+    <!-- Pull-to-Refresh Indicator -->
+    <div id="pull-refresh-indicator" class="pull-to-refresh">
+        <div class="text-zinc-400 text-xs font-bold flex items-center gap-2">
+            <div class="spinner"></div>
+            <span id="pull-refresh-text">Ziehen zum Aktualisieren...</span>
+        </div>
+    </div>
+
     <!-- Offline Indicator -->
     <div id="offline-indicator" class="offline-badge hidden">
         🔴 Keine Internetverbindung
@@ -144,374 +189,361 @@
     <!-- Input Modal (replaces prompt()) -->
     <div id="input-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4">
         <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700">
-            <h3 id="input-title" class="text-yellow-500 font-black uppercase text-lg mb-2">Eingabe</h3>
-            <p id="input-label" class="text-xs text-zinc-400 mb-3"></p>
-            <input id="input-field" type="text" class="w-full p-4 bg-zinc-900 text-white rounded-xl outline-none border border-zinc-700" placeholder="">
-            <div class="flex gap-3 mt-4">
+            <h3 id="input-modal-title" class="text-yellow-500 font-black uppercase text-lg mb-1">Eingabe</h3>
+            <p id="input-modal-label" class="text-xs text-zinc-400 mb-3"></p>
+            <input type="text" id="input-modal-field" placeholder="..." class="w-full bg-zinc-900 text-white text-sm p-3 rounded-xl border border-zinc-700 outline-none focus:border-yellow-500 mb-4">
+            <div class="flex gap-3">
                 <button onclick="cancelInput()" class="flex-1 bg-zinc-700 text-white py-3 rounded-xl font-bold text-sm">Abbrechen</button>
                 <button onclick="submitInput()" class="flex-1 bg-yellow-500 text-black py-3 rounded-xl font-bold text-sm">OK</button>
             </div>
         </div>
     </div>
 
-    <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl pb-60 relative">
+    <!-- Main Container -->
+    <div id="app-container" class="min-h-screen pb-20">
         
-        <!-- Status Banner -->
-        <div id="status-banner" class="hidden mb-6 p-4 rounded-2xl text-center shadow-lg border-2">
-            <h2 id="status-headline" class="text-sm font-black uppercase mb-1"></h2>
-            <p id="status-subline" class="text-[10px] font-bold opacity-80"></p>
-        </div>
-
-        <!-- Loading Screen -->
-        <div id="loading" class="flex flex-col items-center py-20 text-yellow-500 font-bold animate-pulse text-xs">
-            SYSTEM STARTET...
-        </div>
-
-        <!-- Error Display -->
-        <div id="error-display" class="hidden py-20 text-center text-red-500 px-10">
-            <p class="font-bold">FEHLER BEIM LADEN</p>
-            <p id="error-msg" class="text-[10px] mt-2 text-zinc-500"></p>
-            <button onclick="handleLogout()" class="mt-5 text-white underline bg-zinc-800 px-4 py-2 rounded">Notfall Logout</button>
-        </div>
-
-        <!-- Auth Section -->
-        <div id="auth-section" class="hidden py-10 text-center">
-            <h1 class="text-3xl font-black mb-1 text-yellow-500 italic uppercase">Springerplan</h1>
-            <p class="text-[10px] font-bold text-zinc-400 uppercase mb-8">made by Flo</p>
-            <div class="space-y-3 px-4">
-                <input id="email" type="email" placeholder="E-Mail" class="w-full p-4 bg-zinc-800 rounded-2xl outline-none">
-                <input id="password" type="password" placeholder="Passwort" class="w-full p-4 bg-zinc-800 rounded-2xl outline-none">
-                
-                <div id="signup-fields" class="hidden space-y-3 pt-2">
-                    <input id="display_name" type="text" placeholder="Dein Name" class="w-full p-4 bg-zinc-800 rounded-2xl outline-none">
-                    <input id="store_number" type="text" placeholder="Filiale" class="w-full p-4 bg-zinc-800 rounded-2xl outline-none">
-                    <input id="reg_code" type="text" placeholder="Registrierungs-Code" class="w-full p-4 bg-zinc-800 rounded-2xl outline-none">
+        <!-- Login Screen -->
+        <div id="auth-screen" class="fixed inset-0 bg-black flex flex-col items-center justify-center p-6 z-50">
+            <div class="w-full max-w-sm">
+                <div class="text-center mb-8">
+                    <div class="text-6xl mb-4">📅</div>
+                    <h1 class="text-3xl font-black text-yellow-500 mb-1">SPRINGERPLAN</h1>
+                    <p class="text-zinc-500 text-xs font-bold uppercase">V4.1</p>
                 </div>
                 
-                <button id="auth-btn-main" onclick="handleAuthAction()" class="w-full bg-yellow-500 text-black font-black py-4 rounded-2xl uppercase text-sm">Login</button>
-                <button id="toggle-auth-btn" onclick="toggleAuthMode()" class="text-zinc-500 text-[10px] underline">Konto erstellen</button>
+                <div class="bg-zinc-900 p-6 rounded-[2rem] shadow-2xl border border-zinc-800">
+                    <input id="email" type="email" placeholder="E-Mail" class="w-full mb-3 p-3 bg-zinc-800 text-white rounded-xl text-sm outline-none focus:ring-2 focus:ring-yellow-500 border border-zinc-700">
+                    <input id="password" type="password" placeholder="Passwort" class="w-full mb-3 p-3 bg-zinc-800 text-white rounded-xl text-sm outline-none focus:ring-2 focus:ring-yellow-500 border border-zinc-700">
+                    
+                    <div id="signup-fields" class="hidden space-y-3 mb-3">
+                        <input id="display_name" type="text" placeholder="Dein Name" class="w-full p-3 bg-zinc-800 text-white rounded-xl text-sm outline-none focus:ring-2 focus:ring-yellow-500 border border-zinc-700">
+                        <input id="store_number" type="text" placeholder="Filiale (z.B. 1234)" class="w-full p-3 bg-zinc-800 text-white rounded-xl text-sm outline-none focus:ring-2 focus:ring-yellow-500 border border-zinc-700">
+                        <input id="reg_code" type="text" placeholder="Registrierungs-Code" class="w-full p-3 bg-zinc-800 text-white rounded-xl text-sm outline-none focus:ring-2 focus:ring-yellow-500 border border-zinc-700">
+                    </div>
+                    
+                    <button id="auth-btn-main" onclick="handleAuthAction()" class="w-full bg-yellow-500 text-black font-black uppercase py-3 rounded-xl text-sm mb-3">Login</button>
+                    <button id="toggle-auth-btn" onclick="toggleAuthMode()" class="w-full text-zinc-500 text-xs underline">Konto erstellen</button>
+                </div>
             </div>
         </div>
 
-        <!-- Main App Content -->
-        <div id="main-section" class="hidden space-y-6">
+        <!-- Dashboard -->
+        <div id="dashboard" class="hidden">
             
-            <!-- User Info Header -->
-            <div class="bg-zinc-800 p-5 rounded-3xl border border-zinc-700">
-                <p id="user-welcome" class="text-lg font-black text-yellow-500"></p>
-                <p id="user-store" class="text-[10px] text-zinc-400 font-bold"></p>
-                <button onclick="handleLogout()" class="mt-3 text-red-400 underline text-[9px] font-bold">Logout</button>
-            </div>
-
-            <!-- Color Legend -->
-            <div class="bg-zinc-800 p-4 rounded-2xl border border-zinc-700">
-                <h3 class="text-[9px] text-zinc-500 uppercase font-bold mb-3">Farblegende</h3>
-                <div class="grid grid-cols-2 gap-2">
-                    <div class="legend-item"><div class="legend-box day-free"></div><span>Frei</span></div>
-                    <div class="legend-item"><div class="legend-box day-busy"></div><span>Gebucht</span></div>
-                    <div class="legend-item"><div class="legend-box day-pending"></div><span>Anfrage</span></div>
-                    <div class="legend-item"><div class="legend-box day-vacation"></div><span>Urlaub</span></div>
-                    <div class="legend-item"><div class="legend-box day-sick"></div><span>Krank</span></div>
-                    <div class="legend-item"><div class="legend-box day-planned-free"></div><span>Geplant Frei</span></div>
+            <!-- Header -->
+            <div class="bg-zinc-900 p-4 flex justify-between items-center border-b border-zinc-800 sticky top-0 z-40">
+                <div>
+                    <div class="text-sm font-black text-yellow-500 uppercase" id="user-display-name">User</div>
+                    <div class="text-[9px] text-zinc-500 font-bold" id="user-store-info">Filiale —</div>
                 </div>
+                <button onclick="handleLogout()" class="bg-zinc-800 text-white px-4 py-2 rounded-lg font-bold text-[9px] uppercase">Logout</button>
             </div>
 
-            <!-- Calendar Section -->
-            <div class="bg-zinc-800 p-5 rounded-3xl border border-zinc-700">
-                <div class="flex justify-between items-center mb-4">
-                    <button onclick="changeMonth(-1)" class="bg-zinc-700 w-10 h-10 rounded-full font-black text-lg">←</button>
-                    <h2 id="month-name" class="text-sm font-black uppercase text-yellow-500">MONAT</h2>
-                    <button onclick="changeMonth(1)" class="bg-zinc-700 w-10 h-10 rounded-full font-black text-lg">→</button>
+            <!-- Admin Warning Banner (conditionally shown) -->
+            <div id="admin-warning-banner" class="hidden bg-gradient-to-r from-red-600 to-orange-600 p-3 text-center text-white font-black text-[9px] uppercase">
+                ⚠️ Admin-Modus aktiv
+            </div>
+
+            <!-- Pending Approvals Banner (Admin only) -->
+            <div id="user-approval-banner" class="hidden bg-gradient-to-r from-blue-600 to-purple-600 p-3 text-center">
+                <div class="text-white font-black text-[9px] uppercase mb-2">🔔 Neue Benutzer warten auf Freischaltung</div>
+                <div id="user-approval-list" class="text-xs"></div>
+            </div>
+
+            <!-- Pending Requests Banner (Admin only) -->
+            <div id="admin-request-banner" class="hidden bg-gradient-to-r from-yellow-500 to-orange-500 p-3">
+                <div class="text-black font-black text-[9px] uppercase mb-2 text-center">📋 Anfragen</div>
+                <div id="admin-list" class="space-y-2"></div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="p-4 space-y-6">
+                
+                <!-- Calendar -->
+                <div class="bg-zinc-900 p-5 rounded-[2rem] border border-zinc-800">
+                    <div class="flex justify-between items-center mb-4">
+                        <button onclick="changeMonth(-1)" class="bg-zinc-800 text-white px-4 py-2 rounded-xl font-bold">◀</button>
+                        <h2 id="current-month" class="text-lg font-black text-yellow-500 uppercase"></h2>
+                        <button onclick="changeMonth(1)" class="bg-zinc-800 text-white px-4 py-2 rounded-xl font-bold">▶</button>
+                    </div>
+                    
+                    <div class="day-grid text-[9px] text-zinc-500 font-bold uppercase mb-2">
+                        <div class="text-center">Mo</div>
+                        <div class="text-center">Di</div>
+                        <div class="text-center">Mi</div>
+                        <div class="text-center">Do</div>
+                        <div class="text-center">Fr</div>
+                        <div class="text-center">Sa</div>
+                        <div class="text-center">So</div>
+                    </div>
+                    
+                    <div id="calendar" class="day-grid"></div>
                 </div>
-                
-                <div class="day-grid text-[8px] text-zinc-500 font-bold mb-2">
-                    <div class="text-center">MO</div><div class="text-center">DI</div><div class="text-center">MI</div><div class="text-center">DO</div><div class="text-center">FR</div><div class="text-center">SA</div><div class="text-center">SO</div>
-                </div>
-                
-                <div id="calendar-grid" class="day-grid"></div>
-            </div>
 
-            <!-- User Bookings List -->
-            <div class="bg-zinc-800 p-5 rounded-3xl border border-zinc-700">
-                <h3 class="text-[9px] text-zinc-500 uppercase font-bold mb-3">Meine Buchungen</h3>
-                <div id="booking-list" class="space-y-2"></div>
-            </div>
-
-            <!-- Admin Panel -->
-            <div id="admin-panel" class="hidden space-y-6">
-                
-                <!-- Admin Status Toggle -->
-                <div class="bg-yellow-500 text-black p-5 rounded-3xl">
-                    <h3 class="text-[9px] uppercase font-black mb-3">Admin Status</h3>
-                    <div class="flex gap-2">
-                        <button id="status-sick-state" onclick="toggleGlobalStatus('sick')" class="flex-1 bg-red-600 text-white font-black py-3 rounded-xl text-[10px] uppercase">Krank: AUS</button>
-                        <button id="status-vacation-state" onclick="toggleGlobalStatus('vacation')" class="flex-1 bg-blue-600 text-white font-black py-3 rounded-xl text-[10px] uppercase">Urlaub: AUS</button>
+                <!-- Legend -->
+                <div class="bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
+                    <h3 class="text-zinc-500 font-black text-[9px] uppercase mb-3">Legende</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="legend-item"><div class="legend-box day-free"></div><span>Frei</span></div>
+                        <div class="legend-item"><div class="legend-box day-busy"></div><span>Gebucht</span></div>
+                        <div class="legend-item"><div class="legend-box day-pending"></div><span>Ausstehend</span></div>
+                        <div class="legend-item"><div class="legend-box day-vacation"></div><span>Urlaub</span></div>
+                        <div class="legend-item"><div class="legend-box day-sick"></div><span>Krank</span></div>
+                        <div class="legend-item"><div class="legend-box day-planned-free"></div><span>Geplant Frei</span></div>
                     </div>
                 </div>
 
-                <!-- Admin Calendar -->
-                <div class="bg-red-900/20 border-2 border-red-500 p-5 rounded-3xl">
-                    <h3 class="text-red-500 font-black text-sm uppercase mb-4">Admin Kalender-Editor</h3>
-                    <div class="day-grid text-[8px] text-zinc-500 font-bold mb-2">
-                        <div class="text-center">MO</div><div class="text-center">DI</div><div class="text-center">MI</div><div class="text-center">DO</div><div class="text-center">FR</div><div class="text-center">SA</div><div class="text-center">SO</div>
-                    </div>
-                    <div id="admin-calendar-grid" class="day-grid"></div>
+                <!-- Bookings List -->
+                <div class="bg-zinc-900 p-4 rounded-2xl border border-zinc-800">
+                    <h3 class="text-zinc-500 font-black text-[9px] uppercase mb-3">Meine Buchungen</h3>
+                    <div id="booking-list" class="space-y-2"></div>
+                    <button id="expand-bookings-btn" class="hidden w-full mt-3 bg-zinc-800 text-white py-2 rounded-xl font-bold text-[9px] uppercase expand-button" onclick="toggleBookingsList()">
+                        <span id="expand-bookings-text">Mehr anzeigen</span>
+                    </button>
                 </div>
 
-                <!-- Pending Requests -->
-                <div class="bg-zinc-800 p-5 rounded-3xl border border-zinc-700">
-                    <h3 class="text-[9px] text-zinc-500 uppercase font-bold mb-3">Offene Anfragen</h3>
-                    <div id="admin-list" class="space-y-2"></div>
-                </div>
-
-                <!-- User Approval -->
-                <div class="bg-zinc-800 p-5 rounded-3xl border border-zinc-700">
-                    <h3 class="text-[9px] text-zinc-500 uppercase font-bold mb-3">Neue User freischalten</h3>
-                    <div id="user-approval-list"></div>
-                </div>
             </div>
         </div>
     </div>
 
-    <!-- Action Bar (floating bottom) -->
-    <div id="action-bar" class="bg-yellow-500 text-black rounded-[2rem] p-4 shadow-2xl">
-        <p id="selection-info" class="text-center font-black text-[10px] mb-3 uppercase">0 Tage ausgewählt</p>
-        
-        <!-- User Actions -->
-        <button id="btn-submit" onclick="submitSelection()" class="w-full bg-black text-yellow-500 font-black py-3 rounded-xl uppercase text-sm mb-2">Anfrage senden</button>
-        
-        <!-- Admin Actions -->
-        <div id="admin-actions" class="hidden space-y-2 pt-2 border-t-2 border-black/20">
-            <div class="grid grid-cols-2 gap-2">
-                <button onclick="submitAdminAction('direkt')" class="bg-red-600 text-white font-black py-2 rounded-lg text-[9px] uppercase">Direkt buchen</button>
-                <button onclick="submitAdminAction('urlaub')" class="bg-blue-600 text-white font-black py-2 rounded-lg text-[9px] uppercase">Urlaub</button>
-                <button onclick="submitAdminAction('krank')" class="bg-red-900 text-white font-black py-2 rounded-lg text-[9px] uppercase">Krank</button>
-                <button onclick="submitAdminAction('planned_free')" class="bg-purple-600 text-white font-black py-2 rounded-lg text-[9px] uppercase">Geplant Frei</button>
-            </div>
-            <button onclick="submitAdminAction('frei')" class="w-full bg-green-600 text-white font-black py-2 rounded-lg text-[9px] uppercase">Tage freigeben</button>
+    <!-- Action Bar -->
+    <div id="action-bar" class="flex gap-2">
+        <button onclick="quickBook()" class="flex-1 bg-yellow-500 text-black font-black uppercase py-3 rounded-xl text-xs">Buchen</button>
+        <button onclick="clearSelection()" class="bg-zinc-800 text-white font-black uppercase py-3 px-4 rounded-xl text-xs">✕</button>
+    </div>
+
+    <!-- Admin Action Bar (conditionally shown) -->
+    <div id="admin-action-bar" class="hidden fixed bottom-[calc(90px+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[92%] max-w-[400px] bg-zinc-900 p-3 rounded-2xl border-2 border-yellow-500 shadow-2xl z-[9998]">
+        <div class="text-yellow-500 font-black text-[8px] uppercase mb-2 text-center">Admin-Aktionen</div>
+        <div class="flex gap-2 flex-wrap justify-center">
+            <button onclick="adminAction('urlaub')" class="bg-blue-600 text-white px-3 py-2 rounded-lg font-black text-[9px] uppercase">Urlaub</button>
+            <button onclick="adminAction('krank')" class="bg-red-900 text-white px-3 py-2 rounded-lg font-black text-[9px] uppercase">Krank</button>
+            <button onclick="adminAction('planned')" class="bg-purple-600 text-white px-3 py-2 rounded-lg font-black text-[9px] uppercase">Gepl. Frei</button>
+            <button onclick="adminAction('frei')" class="bg-green-600 text-white px-3 py-2 rounded-lg font-black text-[9px] uppercase">Freigeben</button>
         </div>
-        
-        <button onclick="clearSelection()" class="w-full mt-2 text-black/60 underline text-[9px] font-bold">Auswahl löschen</button>
     </div>
 
     <script>
         // ============================================
-        // KONFIGURATION - HIER DEINE DATEN EINTRAGEN
+        // CONFIGURATION
         // ============================================
         
-        const SUPABASE_URL = "https://aggpjaxpupqbsefsusok.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnZ3BqYXhwdXBxYnNlZnN1c29rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNzgxOTcsImV4cCI6MjA4NTg1NDE5N30.66Q-q1EIdn4_EWf_TCOanxwQ-_qB6-FaAYdHCYbLkHk"; // NUR ANON KEY!
-        
-        // EmailJS Konfiguration
-        const EJS_PUBLIC_KEY = "MkRGHMZNkwKnmQDLY";
-        const EJS_SERVICE = "service_z1cwhnt";
-        const EJS_ADMIN_TEMPLATE = "template_avultfe";
-        const EJS_USER_TEMPLATE = "template_22cjt73";
-        
-        // Admin-Email (wird aus Datenbank gelesen, siehe SQL)
-        const ADMIN_EMAIL = "def4lt123@gmail.com"; // Backup-Wert
-        
-        // Registrierungs-Code
-        const MASTER_REG_CODE = "FLO2026";
-        
-        // ============================================
-        // GLOBALE VARIABLEN
-        // ============================================
-        
+        const SUPABASE_URL = 'https://nbhhctvuysrykjytxsdt.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5iaGhjdHZ1eXNyeWtqeXR4c2R0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcxMzc2NTgsImV4cCI6MjA1MjcxMzY1OH0.1S_z1VC-Gzl1o9NlJjTiMLuYZn0KT0pwYzCdDzQ3Yrc';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        let currentUser = null, userProfile = null, selectedDates = [], currentViewDate = new Date(), currentModalBookingId = null;
+
+        const ADMIN_EMAIL = 'bierflo1@gmail.com';
+        const MASTER_REG_CODE = 'GIFTUN24';
+
+        const EJS_PUBLIC_KEY = 'TYg1PoVwcFb1i9yF1';
+        const EJS_SERVICE = 'service_zqf0t8o';
+        const EJS_USER_TEMPLATE = 'template_yrydtrx';
+        const EJS_ADMIN_TEMPLATE = 'template_9eixjsb';
+
+        // ============================================
+        // STATE
+        // ============================================
         
-        let confirmCallback = null, inputCallback = null;
+        let currentUser = null;
+        let allBookings = [];
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+        let selectedDates = [];
+        let currentDetailBooking = null;
+        let confirmCallback = null;
+        let inputCallback = null;
+        let bookingsExpanded = false;
+        let realtimeChannel = null;
+
+        // Pull-to-Refresh Variables
+        let pullStartY = 0;
+        let pullCurrentY = 0;
+        let isPulling = false;
+        let isRefreshing = false;
 
         // ============================================
-        // INITIALISIERUNG
-        // ============================================
-        
-        window.addEventListener('load', init);
-        
-        // Offline Detection
-        window.addEventListener('online', () => {
-            document.getElementById('offline-indicator').classList.add('hidden');
-            showToast('✅ Verbindung wiederhergestellt', 'success');
-        });
-        window.addEventListener('offline', () => {
-            document.getElementById('offline-indicator').classList.remove('hidden');
-        });
-
-        async function init() {
-            try {
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                
-                if (!session) {
-                    document.getElementById('loading').classList.add('hidden');
-                    document.getElementById('auth-section').classList.remove('hidden');
-                    return;
-                }
-                
-                currentUser = session.user;
-                const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
-                
-                if (!profile) throw new Error("Profil nicht gefunden");
-                if (!profile.is_approved) {
-                    document.getElementById('loading').classList.add('hidden');
-                    document.getElementById('error-display').classList.remove('hidden');
-                    document.getElementById('error-msg').innerText = "Dein Account wurde noch nicht freigeschaltet. Bitte warte auf Flos Bestätigung.";
-                    return;
-                }
-                
-                userProfile = profile;
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('main-section').classList.remove('hidden');
-                
-                await loadGlobalStatus();
-                renderUserSection();
-                
-            } catch (err) {
-                console.error(err);
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('error-display').classList.remove('hidden');
-                document.getElementById('error-msg').innerText = err.message;
-            }
-        }
-
-        // ============================================
-        // HELPER FUNCTIONS
+        // INIT
         // ============================================
 
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.style.background = type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#18181b';
-            toast.innerText = message;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        }
-
-        function setBtnLoading(btnId, isLoading, text = '') {
-            const btn = document.getElementById(btnId);
-            if (!btn) return;
-            if (isLoading) {
-                btn.classList.add('btn-loading');
-                btn.innerHTML = `<span class="spinner"></span>${text}`;
-            } else {
-                btn.classList.remove('btn-loading');
-                btn.innerHTML = btn.getAttribute('data-original-text') || text;
-            }
-        }
-
-        // Modal Helpers
-        function showConfirm(message, callback) {
-            document.getElementById('confirm-message').innerText = message;
-            document.getElementById('confirm-modal').classList.remove('hidden');
-            confirmCallback = callback;
-        }
-
-        function cancelConfirm() {
-            document.getElementById('confirm-modal').classList.add('hidden');
-            confirmCallback = null;
-        }
-
-        function confirmAction() {
-            document.getElementById('confirm-modal').classList.add('hidden');
-            if (confirmCallback) confirmCallback();
-            confirmCallback = null;
-        }
-
-        function showInput(title, label, placeholder, callback) {
-            document.getElementById('input-title').innerText = title;
-            document.getElementById('input-label').innerText = label;
-            document.getElementById('input-field').placeholder = placeholder;
-            document.getElementById('input-field').value = '';
-            document.getElementById('input-modal').classList.remove('hidden');
-            inputCallback = callback;
-        }
-
-        function cancelInput() {
-            document.getElementById('input-modal').classList.add('hidden');
-            if (inputCallback) inputCallback(null);
-            inputCallback = null;
-        }
-
-        function submitInput() {
-            const value = document.getElementById('input-field').value;
-            document.getElementById('input-modal').classList.add('hidden');
-            if (inputCallback) inputCallback(value);
-            inputCallback = null;
-        }
-
-        function closeModal() {
-            document.getElementById('detail-modal').classList.add('hidden');
-        }
-
-        // ============================================
-        // USER SECTION
-        // ============================================
-
-        function renderUserSection() {
-            if (!userProfile) return;
-            document.getElementById('user-welcome').innerText = userProfile.display_name;
-            document.getElementById('user-store').innerText = 'Filiale: ' + userProfile.store_number;
-            const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-            document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
-            fetchAndRender();
-        }
-
-        async function fetchAndRender() {
-            const { data: bookings } = await supabaseClient.from('bookings').select('*');
-            renderCalendar('calendar-grid', bookings || [], false); 
-            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                renderCalendar('admin-calendar-grid', bookings || [], true);
-                renderUserApproval();
-            }
-            renderLists(bookings || []);
-        }
-
-        async function loadGlobalStatus() {
-            const { data, error } = await supabaseClient.from('profiles').select('admin_status').eq('email', ADMIN_EMAIL).maybeSingle();
-            if (data) {
-                renderGlobalBanner(data.admin_status);
-            }
-        }
-
-        function renderGlobalBanner(status) {
-            const banner = document.getElementById('status-banner');
-            const h = document.getElementById('status-headline');
-            const s = document.getElementById('status-subline');
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+            checkOnlineStatus();
+            window.addEventListener('online', () => updateOnlineStatus(true));
+            window.addEventListener('offline', () => updateOnlineStatus(false));
             
-            const btnSick = document.getElementById('status-sick-state');
-            const btnVac = document.getElementById('status-vacation-state');
-            if(btnSick) btnSick.innerText = (status === 'sick' ? 'Krank: AN' : 'Krank: AUS');
-            if(btnVac) btnVac.innerText = (status === 'vacation' ? 'Urlaub: AN' : 'Urlaub: AUS');
+            // Setup Pull-to-Refresh
+            setupPullToRefresh();
+        });
 
-            if (status === 'sick') {
-                banner.classList.remove('hidden');
-                banner.className = "mb-6 p-4 rounded-2xl text-center shadow-lg border-2 border-red-500 bg-red-900/20 text-red-500 animate-pulse";
-                h.innerText = "Flo befindet sich derzeit im Krankenstand.";
-                s.innerText = "Anfragen werden eventuell erst später bearbeitet.";
-            } else if (status === 'vacation') {
-                banner.classList.remove('hidden');
-                banner.className = "mb-6 p-4 rounded-2xl text-center shadow-lg border-2 border-blue-500 bg-blue-900/20 text-blue-400 animate-pulse";
-                h.innerText = "Flo ist derzeit im Urlaub.";
-                s.innerText = "Anfragen werden eventuell erst später bearbeitet.";
-            } else {
-                banner.classList.add('hidden');
+        // ============================================
+        // PULL-TO-REFRESH FUNCTIONALITY
+        // ============================================
+
+        function setupPullToRefresh() {
+            const dashboard = document.getElementById('dashboard');
+            const indicator = document.getElementById('pull-refresh-indicator');
+            const text = document.getElementById('pull-refresh-text');
+
+            dashboard.addEventListener('touchstart', (e) => {
+                if (window.scrollY === 0 && !isRefreshing) {
+                    pullStartY = e.touches[0].clientY;
+                    isPulling = true;
+                }
+            }, { passive: true });
+
+            dashboard.addEventListener('touchmove', (e) => {
+                if (!isPulling || isRefreshing) return;
+
+                pullCurrentY = e.touches[0].clientY;
+                const pullDistance = pullCurrentY - pullStartY;
+
+                if (pullDistance > 0 && pullDistance < 100) {
+                    indicator.style.opacity = pullDistance / 100;
+                    indicator.style.transform = `translateY(${pullDistance - 60}px)`;
+                    text.textContent = 'Ziehen zum Aktualisieren...';
+                } else if (pullDistance >= 100) {
+                    indicator.classList.add('visible');
+                    text.textContent = 'Loslassen zum Aktualisieren';
+                }
+            }, { passive: true });
+
+            dashboard.addEventListener('touchend', async () => {
+                if (!isPulling || isRefreshing) return;
+
+                const pullDistance = pullCurrentY - pullStartY;
+
+                if (pullDistance >= 100) {
+                    await triggerRefresh();
+                } else {
+                    resetPullToRefresh();
+                }
+
+                isPulling = false;
+                pullStartY = 0;
+                pullCurrentY = 0;
+            }, { passive: true });
+        }
+
+        async function triggerRefresh() {
+            if (isRefreshing) return;
+
+            isRefreshing = true;
+            const indicator = document.getElementById('pull-refresh-indicator');
+            const text = document.getElementById('pull-refresh-text');
+
+            indicator.classList.add('refreshing');
+            text.textContent = 'Aktualisiere...';
+
+            try {
+                await fetchAndRender();
+                showToast('✅ Aktualisiert', 'success');
+            } catch (error) {
+                showToast('❌ Fehler beim Aktualisieren', 'error');
+            }
+
+            setTimeout(() => {
+                resetPullToRefresh();
+                isRefreshing = false;
+            }, 500);
+        }
+
+        function resetPullToRefresh() {
+            const indicator = document.getElementById('pull-refresh-indicator');
+            indicator.classList.remove('visible', 'refreshing');
+            indicator.style.opacity = '0';
+            indicator.style.transform = 'translateY(-60px)';
+        }
+
+        // ============================================
+        // REALTIME UPDATES (Supabase)
+        // ============================================
+
+        function setupRealtimeUpdates() {
+            // Unsubscribe from previous channel if exists
+            if (realtimeChannel) {
+                supabaseClient.removeChannel(realtimeChannel);
+            }
+
+            // Subscribe to bookings table changes
+            realtimeChannel = supabaseClient
+                .channel('bookings-changes')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'bookings' },
+                    async (payload) => {
+                        console.log('Realtime update:', payload);
+                        
+                        // Silently refresh data in background
+                        await fetchAndRender(true); // true = silent mode, no toast
+                    }
+                )
+                .subscribe();
+
+            // Also listen to profile changes for admin
+            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                supabaseClient
+                    .channel('profile-changes')
+                    .on(
+                        'postgres_changes',
+                        { event: '*', schema: 'public', table: 'profiles' },
+                        async () => {
+                            await fetchAndRender(true);
+                        }
+                    )
+                    .subscribe();
             }
         }
 
-        async function toggleGlobalStatus(type) {
-            try {
-                let { data } = await supabaseClient.from('profiles').select('admin_status').eq('id', currentUser.id).maybeSingle();
-                const newStatus = (data && data.admin_status === type) ? null : type;
-                
-                const { error } = await supabaseClient.from('profiles').update({ admin_status: newStatus }).eq('id', currentUser.id);
-                
-                if (error) {
-                    showToast('❌ Fehler: ' + error.message, 'error');
-                } else {
-                    location.reload(); 
-                }
-            } catch (err) { 
-                showToast('❌ System-Fehler: ' + err.message, 'error');
+        // ============================================
+        // AUTH & USER
+        // ============================================
+
+        async function checkAuth() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) {
+                document.getElementById('auth-screen').classList.remove('hidden');
+                return;
+            }
+
+            currentUser = session.user;
+            const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+
+            if (!profile || !profile.is_approved) {
+                showToast('⏳ Dein Account wurde noch nicht freigeschaltet.', 'warning');
+                await supabaseClient.auth.signOut();
+                document.getElementById('auth-screen').classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('user-display-name').innerText = profile.display_name || currentUser.email;
+            document.getElementById('user-store-info').innerText = `Filiale ${profile.store_number || '—'}`;
+
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+
+            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                document.getElementById('admin-warning-banner').classList.remove('hidden');
+            }
+
+            await fetchAndRender();
+            
+            // Setup realtime updates after initial load
+            setupRealtimeUpdates();
+        }
+
+        async function fetchAndRender(silent = false) {
+            const { data } = await supabaseClient.from('bookings').select('*');
+            allBookings = data || [];
+            renderCalendar();
+            renderLists(allBookings);
+
+            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                await renderUserApproval();
+            }
+
+            if (!silent) {
+                // Only show toast if not silent
+                // (silent is used for background realtime updates)
             }
         }
 
@@ -519,238 +551,152 @@
         // CALENDAR RENDERING
         // ============================================
 
-        function isAustrianHoliday(date) {
-            const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
-            const fixed = ['1.1.', '6.1.', '1.5.', '15.8.', '26.10.', '1.11.', '25.12.', '26.12.'];
-            if (fixed.includes(`${d}.${m}.`)) return true;
-            const a = y % 19, b = Math.floor(y / 100), c = y % 100, d1 = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d1 - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m1 = Math.floor((a + 11 * h + 22 * l) / 451), month = Math.floor((h + l - 7 * m1 + 114) / 31), day = ((h + l - 7 * m1 + 114) % 31) + 1;
-            const easter = new Date(y, month - 1, day);
-            const addDays = (base, n) => { let res = new Date(base); res.setDate(res.getDate() + n); return res; };
-            const check = (target) => d === target.getDate() && (m - 1) === target.getMonth();
-            return check(addDays(easter, 1)) || check(addDays(easter, 39)) || check(addDays(easter, 50)) || check(addDays(easter, 60));
+        function renderCalendar() {
+            const cal = document.getElementById('calendar');
+            cal.innerHTML = '';
+            
+            document.getElementById('current-month').innerText = new Date(currentYear, currentMonth).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const offset = (firstDay === 0 ? 6 : firstDay - 1);
+
+            for (let i = 0; i < offset; i++) {
+                const empty = document.createElement('div');
+                cal.appendChild(empty);
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const div = document.createElement('div');
+                div.className = 'calendar-day';
+                div.innerHTML = `<span>${day}</span>`;
+
+                const bookingsForDay = allBookings.filter(b => b.requested_date === dateStr);
+                const isPast = new Date(dateStr) < new Date(new Date().toDateString());
+
+                if (bookingsForDay.length > 0) {
+                    const primary = bookingsForDay[0];
+                    if (primary.booking_type === 'vacation') div.classList.add('day-vacation');
+                    else if (primary.booking_type === 'sick') div.classList.add('day-sick');
+                    else if (primary.booking_type === 'planned_free') div.classList.add('day-planned-free');
+                    else if (primary.status === 'pending') div.classList.add('day-pending');
+                    else if (primary.status === 'confirmed') div.classList.add('day-busy');
+
+                    if (bookingsForDay.length > 1) {
+                        div.innerHTML += `<div class="store-label">${bookingsForDay.map(b => b.store_number).join(', ')}</div>`;
+                    } else {
+                        div.innerHTML += `<div class="store-label">${primary.store_number}</div>`;
+                    }
+
+                    div.onclick = () => openModal(primary);
+                } else {
+                    div.classList.add('day-free');
+                    if (isPast) {
+                        div.classList.add('day-disabled');
+                    } else {
+                        div.onclick = () => toggleDateSelection(dateStr, div);
+                    }
+                }
+
+                if (selectedDates.includes(dateStr)) div.classList.add('day-selected');
+
+                cal.appendChild(div);
+            }
         }
 
-        function renderCalendar(targetId, allBookings, isArchiveMode) {
-            const grid = document.getElementById(targetId);
-            if (!grid) return; grid.innerHTML = '';
-            
-            const year = currentViewDate.getFullYear(), month = currentViewDate.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const startDay = (new Date(year, month, 1).getDay() + 6) % 7;
-            
-            // FIX: String-Vergleich statt Date-Objekt-Vergleich
-            const today = new Date();
-            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-            
-            if (targetId === 'calendar-grid') {
-                document.getElementById('month-name').innerText = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(currentViewDate);
-            }
-            
-            for (let x = 0; x < startDay; x++) grid.innerHTML += `<div></div>`;
-            
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dateObj = new Date(year, month, d);
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const b = allBookings.find(x => x.requested_date === dateStr && x.status !== 'rejected');
-                let cls = "day-free", label = "", disabled = false, isBusy = false;
-                
-                // FIX: String-Vergleich für vergangene Tage
-                if (!isArchiveMode) { 
-                    if (dateStr < todayStr || dateObj.getDay() === 0 || isAustrianHoliday(dateObj)) { 
-                        disabled = true; 
-                        cls = "day-disabled"; 
-                    } 
-                }
-                
-                if (b) {
-                    isBusy = true; 
-                    if (b.status === 'confirmed') { cls = "day-busy"; label = "Fil. " + b.store_number; }
-                    else if (b.status === 'pending') { cls = "day-pending"; label = "OFFEN"; }
-                    else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
-                    else if (b.status === 'sick') { cls = "day-sick"; label = "KRANK"; }
-                    else if (b.status === 'planned_free') { cls = "day-planned-free"; label = "FREI"; }
-                }
-                
-                const isSelected = selectedDates.includes(dateStr) ? 'day-selected' : '';
-                const bookingData = b ? JSON.stringify(b).replace(/"/g, '&quot;') : null;
-                let clickAction = '';
-                
-                if (!disabled) { 
-                    if (isArchiveMode) { clickAction = `toggleDateSelection('${dateStr}')`; } 
-                    else { clickAction = (isBusy && bookingData) ? `openModal(${bookingData})` : `toggleDateSelection('${dateStr}')`; } 
-                }
-                
-                grid.innerHTML += `<div onclick="${clickAction}" class="calendar-day ${cls} ${isSelected}"><span>${d}</span>${label ? `<span class="store-label">${label}</span>` : ''}</div>`;
-            }
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+            if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+            renderCalendar();
         }
-        
-        function openModal(b) {
-            document.getElementById('detail-modal').classList.remove('hidden');
-            document.getElementById('modal-date').innerText = b.requested_date;
-            document.getElementById('modal-user').innerText = `${b.display_name} (${b.status})`;
-            document.getElementById('modal-reason-user').innerText = b.reason_user || "Keine Angabe";
-            
-            const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-            const adminNoteField = document.getElementById('modal-reason-admin');
-            const saveBtn = document.getElementById('btn-save-note');
-            
-            adminNoteField.value = b.reason_admin || "";
-            
-            if (isAdmin) {
-                adminNoteField.readOnly = false;
-                saveBtn.classList.remove('hidden');
-                currentModalBookingId = b.id;
+
+        function toggleDateSelection(date, elem) {
+            const idx = selectedDates.indexOf(date);
+            if (idx > -1) {
+                selectedDates.splice(idx, 1);
+                elem.classList.remove('day-selected');
             } else {
-                adminNoteField.readOnly = true;
-                saveBtn.classList.add('hidden');
+                selectedDates.push(date);
+                elem.classList.add('day-selected');
             }
-        }
 
-        async function saveAdminNote() {
-            const note = document.getElementById('modal-reason-admin').value;
-            setBtnLoading('btn-save-note', true, "");
-            const { error } = await supabaseClient.from('bookings').update({ reason_admin: note }).eq('id', currentModalBookingId);
-            setBtnLoading('btn-save-note', false);
-            if (error) {
-                showToast('❌ Fehler beim Speichern', 'error');
+            const actionBar = document.getElementById('action-bar');
+            const adminActionBar = document.getElementById('admin-action-bar');
+            
+            if (selectedDates.length > 0) {
+                actionBar.classList.add('visible');
+                if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                    adminActionBar.classList.remove('hidden');
+                }
             } else {
-                showToast('✅ Notiz gespeichert', 'success');
-                closeModal(); 
-                fetchAndRender();
+                actionBar.classList.remove('visible');
+                adminActionBar.classList.add('hidden');
             }
         }
 
-        // ============================================
-        // DATE SELECTION & ACTION BAR
-        // ============================================
-
-        function toggleDateSelection(date) {
-            if (selectedDates.includes(date)) { 
-                selectedDates = selectedDates.filter(d => d !== date); 
-            } else { 
-                selectedDates.push(date); 
-            }
-            updateActionBar(); 
-            supabaseClient.from('bookings').select('*').then(({data}) => { 
-                renderCalendar('calendar-grid', data || [], false); 
-                if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) { 
-                    renderCalendar('admin-calendar-grid', data || [], true); 
-                } 
-            });
-        }
-
-        function updateActionBar() { 
-            const bar = document.getElementById('action-bar'), count = selectedDates.length; 
-            bar.classList.toggle('visible', count > 0); 
-            
-            // Bessere Info-Anzeige
-            let infoText = `${count} ${count === 1 ? 'Tag' : 'Tage'} ausgewählt`;
-            if (count > 0 && count <= 3) {
-                infoText += ': ' + selectedDates.join(', ');
-            }
-            document.getElementById('selection-info').innerText = infoText;
-            
-            document.getElementById('admin-actions').classList.toggle('hidden', currentUser.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()); 
-        }
-
-        function clearSelection() { 
-            selectedDates = []; 
-            updateActionBar(); 
-            fetchAndRender(); 
-        }
-
-        function changeMonth(d) { 
-            currentViewDate.setMonth(currentViewDate.getMonth() + d); 
-            clearSelection(); 
+        function clearSelection() {
+            selectedDates = [];
+            document.getElementById('action-bar').classList.remove('visible');
+            document.getElementById('admin-action-bar').classList.add('hidden');
+            renderCalendar();
         }
 
         // ============================================
-        // USER ACTIONS
+        // BOOKING ACTIONS
         // ============================================
 
-        async function submitSelection() {
-            if (selectedDates.length === 0) {
-                showToast('⚠️ Keine Tage ausgewählt', 'error');
-                return;
-            }
+        function quickBook() {
+            if (selectedDates.length === 0) return;
 
             showInput(
-                'Anfrage senden',
-                'Optionale Nachricht/Grund für die Anfrage:',
-                'z.B. "Brauche einen Tag frei..."',
+                'Buchung anfragen',
+                'Grund (optional):',
+                'z.B. "Arzttermin", "Familienfest"...',
                 async (reason) => {
-                    if (reason === null) return; // Abgebrochen
-                    
-                    setBtnLoading('btn-submit', true, "Sende...");
-                    
-                    const ins = selectedDates.map(d => ({ 
-                        user_id: currentUser.id, 
-                        requested_date: d, 
-                        display_name: userProfile.display_name, 
-                        store_number: userProfile.store_number, 
-                        user_email: currentUser.email, 
-                        reason_user: reason, 
-                        status: 'pending' 
+                    const insData = selectedDates.map(d => ({
+                        requested_date: d,
+                        user_id: currentUser.id,
+                        user_email: currentUser.email,
+                        display_name: document.getElementById('user-display-name').innerText,
+                        store_number: document.getElementById('user-store-info').innerText.replace('Filiale ', ''),
+                        status: 'pending',
+                        booking_type: 'request',
+                        reason_user: reason || null
                     }));
-                    
-                    const { error } = await supabaseClient.from('bookings').insert(ins);
-                    
-                    if (!error) { 
-                        emailjs.init(EJS_PUBLIC_KEY); 
-                        emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { 
-                            user_name: userProfile.display_name, 
-                            store_number: userProfile.store_number, 
-                            date: selectedDates.join(", "), 
-                            reason: reason || "-" 
-                        }); 
-                        showToast('✅ Anfrage erfolgreich gesendet!', 'success');
-                        clearSelection(); 
-                    } else {
-                        showToast('❌ Fehler: ' + error.message, 'error');
-                    }
-                    
-                    setBtnLoading('btn-submit', false);
+
+                    await supabaseClient.from('bookings').insert(insData);
+
+                    emailjs.init(EJS_PUBLIC_KEY);
+                    await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, {
+                        user_name: insData[0].display_name,
+                        store_number: insData[0].store_number,
+                        date: selectedDates.join(', '),
+                        reason: reason || 'Keine Angabe'
+                    });
+
+                    showToast('✅ Anfrage gesendet', 'success');
+                    clearSelection();
                 }
             );
         }
 
-        // ============================================
-        // ADMIN ACTIONS
-        // ============================================
+        async function adminAction(type) {
+            if (selectedDates.length === 0) return;
 
-        async function submitAdminAction(type) {
-            if (selectedDates.length === 0) {
-                showToast('⚠️ Keine Tage ausgewählt', 'error');
-                return;
-            }
-
-            const insData = (status, store, display) => selectedDates.map(d => ({ 
-                requested_date: d, 
-                status, 
-                store_number: store, 
-                display_name: display, 
-                user_id: currentUser.id, 
-                user_email: currentUser.email 
+            const insData = (bType, label, user) => selectedDates.map(d => ({
+                requested_date: d,
+                user_id: currentUser.id,
+                user_email: user,
+                display_name: label,
+                store_number: document.getElementById('user-store-info').innerText.replace('Filiale ', ''),
+                status: 'confirmed',
+                booking_type: bType,
+                reason_admin: `Admin: ${label}`
             }));
 
-            if (type === 'direkt') {
-                showInput(
-                    'Direkt buchen',
-                    'Filiale eingeben:',
-                    'z.B. 123',
-                    async (filiale) => {
-                        if (!filiale) return;
-                        showConfirm(
-                            `${selectedDates.length} Tage als GEBUCHT (Filiale ${filiale}) markieren?`,
-                            async () => {
-                                await supabaseClient.from('bookings').insert(insData('confirmed', filiale, 'Admin'));
-                                showToast('✅ Tage gebucht', 'success');
-                                clearSelection();
-                            }
-                        );
-                    }
-                );
-            } else if (type === 'urlaub') {
+            if (type === 'urlaub') {
                 showConfirm(
                     `${selectedDates.length} Tage als URLAUB markieren?`,
                     async () => {
@@ -768,7 +714,7 @@
                         clearSelection();
                     }
                 );
-            } else if (type === 'planned_free') {
+            } else if (type === 'planned') {
                 showConfirm(
                     `${selectedDates.length} Tage als GEPLANT FREI markieren?`,
                     async () => {
@@ -789,13 +735,22 @@
             }
         }
 
+        // ============================================
+        // USER APPROVAL (Admin)
+        // ============================================
+
         async function renderUserApproval() {
             const list = document.getElementById('user-approval-list');
+            const banner = document.getElementById('user-approval-banner');
             const { data: users } = await supabaseClient.from('profiles').select('*').eq('is_approved', false);
+            
             if (!users || users.length === 0) { 
                 list.innerHTML = '<p class="text-[9px] text-zinc-600">Keine neuen User</p>'; 
+                banner.classList.add('hidden');
                 return; 
             }
+
+            banner.classList.remove('hidden');
             list.innerHTML = '';
             users.forEach(u => {
                 list.innerHTML += `<div class="bg-white text-black p-3 rounded-xl flex justify-between items-center mb-2"><div class="text-left font-black text-[8px]">${u.display_name}<br><span class="font-normal">Filiale ${u.store_number}</span></div><button onclick="approveUser('${u.id}')" class="bg-blue-600 text-white px-3 py-2 rounded-lg font-black uppercase text-[7px]">OK</button></div>`;
@@ -805,30 +760,86 @@
         async function approveUser(uid) { 
             await supabaseClient.from('profiles').update({ is_approved: true }).eq('id', uid); 
             showToast('✅ User freigeschaltet', 'success');
-            fetchAndRender(); 
+            await fetchAndRender(); 
         }
 
+        // ============================================
+        // BOOKING LISTS
+        // ============================================
+
         function renderLists(data) {
-            const uL = document.getElementById('booking-list'), aL = document.getElementById('admin-list');
+            const uL = document.getElementById('booking-list');
+            const aL = document.getElementById('admin-list');
+            const aBanner = document.getElementById('admin-request-banner');
+            
             uL.innerHTML = ''; 
+            
+            // Admin list
             const pending = data.filter(x => x.status === 'pending');
             
             if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                aL.innerHTML = pending.length ? '' : '<p class="text-[9px] text-zinc-600">Keine Anfragen</p>';
-                pending.forEach(b => {
-                    aL.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold"><div>${b.requested_date}<br><span class="text-zinc-500">${b.display_name}</span></div><div class="flex gap-1"><button onclick="processRequest(this, '${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button><button onclick="processRequest(this, '${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button></div></div>`;
-                });
+                if (pending.length > 0) {
+                    aBanner.classList.remove('hidden');
+                    aL.innerHTML = '';
+                    pending.forEach(b => {
+                        aL.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold"><div>${b.requested_date}<br><span class="text-zinc-500">${b.display_name}</span></div><div class="flex gap-1"><button onclick="processRequest(this, '${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button><button onclick="processRequest(this, '${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button></div></div>`;
+                    });
+                } else {
+                    aBanner.classList.add('hidden');
+                }
             }
             
+            // User bookings with collapsible functionality
             const userBookings = data.filter(x => x.user_id === currentUser.id).sort((a,b) => b.requested_date.localeCompare(a.requested_date));
+            const expandBtn = document.getElementById('expand-bookings-btn');
+            
             if (userBookings.length === 0) {
                 uL.innerHTML = '<p class="text-[9px] text-zinc-600">Noch keine Buchungen</p>';
-            } else {
+                expandBtn.classList.add('hidden');
+            } else if (userBookings.length <= 5) {
+                // Show all bookings if 5 or fewer
                 userBookings.forEach(b => {
-                    uL.innerHTML += `<div onclick='openModal(${JSON.stringify(b)})' class="p-4 bg-zinc-800/30 rounded-2xl flex justify-between items-center text-[9px] font-bold border border-zinc-800 cursor-pointer"><div>${b.requested_date}</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
+                    uL.innerHTML += createBookingItem(b);
                 });
+                expandBtn.classList.add('hidden');
+            } else {
+                // Show first 5, hide rest
+                userBookings.forEach((b, idx) => {
+                    const hiddenClass = (!bookingsExpanded && idx >= 5) ? 'booking-item-hidden' : '';
+                    uL.innerHTML += createBookingItem(b, hiddenClass);
+                });
+                expandBtn.classList.remove('hidden');
+                updateExpandButtonText();
             }
         }
+
+        function createBookingItem(booking, extraClass = '') {
+            return `<div onclick='openModal(${JSON.stringify(booking).replace(/'/g, "&apos;")})' class="p-4 bg-zinc-800/30 rounded-2xl flex justify-between items-center text-[9px] font-bold border border-zinc-800 cursor-pointer ${extraClass}"><div>${booking.requested_date}</div><div class="uppercase text-yellow-500">${booking.status}</div></div>`;
+        }
+
+        function toggleBookingsList() {
+            bookingsExpanded = !bookingsExpanded;
+            const items = document.querySelectorAll('.booking-item-hidden');
+            
+            items.forEach(item => {
+                if (bookingsExpanded) {
+                    item.classList.remove('booking-item-hidden');
+                } else {
+                    item.classList.add('booking-item-hidden');
+                }
+            });
+            
+            updateExpandButtonText();
+        }
+
+        function updateExpandButtonText() {
+            const text = document.getElementById('expand-bookings-text');
+            text.textContent = bookingsExpanded ? 'Weniger anzeigen' : 'Mehr anzeigen';
+        }
+
+        // ============================================
+        // REQUEST PROCESSING
+        // ============================================
 
         async function processRequest(btn, id, status, email, date) {
             if (status === 'rejected') {
@@ -851,11 +862,10 @@
                             });
                         }
                         showToast('✅ Anfrage abgelehnt', 'success');
-                        fetchAndRender();
+                        await fetchAndRender();
                     }
                 );
             } else {
-                // Bestätigung
                 btn.innerText = '..';
                 await supabaseClient.from('bookings').update({ status }).eq('id', id);
                 
@@ -869,7 +879,126 @@
                     });
                 }
                 showToast('✅ Anfrage bestätigt', 'success');
-                fetchAndRender();
+                await fetchAndRender();
+            }
+        }
+
+        // ============================================
+        // MODAL FUNCTIONS
+        // ============================================
+
+        function openModal(booking) {
+            currentDetailBooking = booking;
+            document.getElementById('detail-modal').classList.remove('hidden');
+            document.getElementById('modal-date').innerText = booking.requested_date;
+            document.getElementById('modal-user').innerText = `${booking.display_name} (${booking.status})`;
+            document.getElementById('modal-reason-user').innerText = booking.reason_user || 'Keine Info';
+            
+            const adminArea = document.getElementById('admin-note-area');
+            const adminTextarea = document.getElementById('modal-reason-admin');
+            const saveBtn = document.getElementById('btn-save-note');
+
+            if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                adminArea.classList.remove('hidden');
+                adminTextarea.value = booking.reason_admin || '';
+                adminTextarea.oninput = () => { saveBtn.classList.remove('hidden'); };
+            } else {
+                adminArea.classList.add('hidden');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('detail-modal').classList.add('hidden');
+            currentDetailBooking = null;
+        }
+
+        async function saveAdminNote() {
+            const note = document.getElementById('modal-reason-admin').value;
+            await supabaseClient.from('bookings').update({ reason_admin: note }).eq('id', currentDetailBooking.id);
+            showToast('✅ Anmerkung gespeichert', 'success');
+            document.getElementById('btn-save-note').classList.add('hidden');
+            await fetchAndRender();
+        }
+
+        // ============================================
+        // CONFIRM & INPUT MODALS
+        // ============================================
+
+        function showConfirm(message, callback) {
+            document.getElementById('confirm-message').innerText = message;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+            confirmCallback = callback;
+        }
+
+        function cancelConfirm() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            confirmCallback = null;
+        }
+
+        async function confirmAction() {
+            if (confirmCallback) {
+                await confirmCallback();
+                cancelConfirm();
+            }
+        }
+
+        function showInput(title, label, placeholder, callback) {
+            document.getElementById('input-modal-title').innerText = title;
+            document.getElementById('input-modal-label').innerText = label;
+            const field = document.getElementById('input-modal-field');
+            field.placeholder = placeholder;
+            field.value = '';
+            document.getElementById('input-modal').classList.remove('hidden');
+            inputCallback = callback;
+            setTimeout(() => field.focus(), 100);
+        }
+
+        function cancelInput() {
+            document.getElementById('input-modal').classList.add('hidden');
+            inputCallback = null;
+        }
+
+        async function submitInput() {
+            const value = document.getElementById('input-modal-field').value;
+            if (inputCallback) {
+                await inputCallback(value);
+                cancelInput();
+            }
+        }
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function setBtnLoading(btnId, isLoading, text = '...') {
+            const btn = document.getElementById(btnId);
+            if (isLoading) {
+                btn.classList.add('btn-loading');
+                btn.innerHTML = `<span class="spinner"></span>${text}`;
+            } else {
+                btn.classList.remove('btn-loading');
+                btn.innerHTML = text;
+            }
+        }
+
+        function checkOnlineStatus() {
+            updateOnlineStatus(navigator.onLine);
+        }
+
+        function updateOnlineStatus(isOnline) {
+            const indicator = document.getElementById('offline-indicator');
+            if (isOnline) {
+                indicator.classList.add('hidden');
+            } else {
+                indicator.classList.remove('hidden');
             }
         }
 
@@ -879,7 +1008,9 @@
 
         async function handleAuthAction() {
             setBtnLoading('auth-btn-main', true, "...");
-            const email = document.getElementById('email').value, password = document.getElementById('password').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
             try {
                 if (document.getElementById('signup-fields').classList.contains('hidden')) {
                     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
@@ -889,11 +1020,25 @@
                     const name = document.getElementById('display_name').value;
                     const store = document.getElementById('store_number').value;
                     const code = document.getElementById('reg_code').value;
+                    
                     if (code.toUpperCase() !== MASTER_REG_CODE) throw new Error("Registrierungs-Code falsch");
-                    const { error } = await supabaseClient.auth.signUp({ email, password, options: { data: { display_name: name, store_number: store } } });
+                    
+                    const { error } = await supabaseClient.auth.signUp({ 
+                        email, 
+                        password, 
+                        options: { data: { display_name: name, store_number: store } } 
+                    });
+                    
                     if (error) throw error;
+                    
                     emailjs.init(EJS_PUBLIC_KEY);
-                    await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { user_name: name, store_number: store, date: "NEUE ANMELDUNG", reason: "Wartet auf Freischaltung" });
+                    await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { 
+                        user_name: name, 
+                        store_number: store, 
+                        date: "NEUE ANMELDUNG", 
+                        reason: "Wartet auf Freischaltung" 
+                    });
+                    
                     showToast('✅ Registriert! Warte auf Freischaltung.', 'success');
                     location.reload(); 
                 }
@@ -910,6 +1055,10 @@
         }
 
         async function handleLogout() { 
+            // Cleanup realtime subscriptions
+            if (realtimeChannel) {
+                await supabaseClient.removeChannel(realtimeChannel);
+            }
             await supabaseClient.auth.signOut(); 
             location.reload(); 
         }
