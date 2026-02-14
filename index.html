@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V4.0</title>
+    <title>Springerplan made by Flo - V4.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -93,9 +93,65 @@
             z-index: 10002;
             animation: pulse 2s infinite;
         }
+
+        /* Pull to Refresh */
+        .pull-to-refresh {
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #18181b;
+            color: #eab308;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            opacity: 0;
+            z-index: 100;
+        }
+        .pull-to-refresh.visible {
+            top: 20px;
+            opacity: 1;
+        }
+
+        /* Realtime Indicator */
+        .realtime-badge {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #22c55e;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.6rem;
+            font-weight: bold;
+            z-index: 10001;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .realtime-dot {
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
     </style>
 </head>
 <body class="bg-black text-white font-sans overflow-x-hidden">
+    
+    <!-- Realtime Indicator -->
+    <div id="realtime-badge" class="realtime-badge hidden">
+        <span class="realtime-dot"></span>
+        Live
+    </div>
+
+    <!-- Pull to Refresh Indicator -->
+    <div id="pull-refresh-indicator" class="pull-to-refresh">
+        ↓ Ziehen zum Aktualisieren
+    </div>
     
     <!-- Offline Indicator -->
     <div id="offline-indicator" class="offline-badge hidden">
@@ -233,8 +289,16 @@
 
             <!-- User Bookings List -->
             <div class="bg-zinc-800 p-5 rounded-3xl border border-zinc-700">
-                <h3 class="text-[9px] text-zinc-500 uppercase font-bold mb-3">Meine Buchungen</h3>
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-[9px] text-zinc-500 uppercase font-bold">Meine Buchungen</h3>
+                    <button onclick="manualRefresh()" class="text-yellow-500 text-xs font-bold hover:scale-110 transition-transform" title="Aktualisieren">
+                        🔄
+                    </button>
+                </div>
                 <div id="booking-list" class="space-y-2"></div>
+                <button id="toggle-bookings-btn" onclick="toggleBookings()" class="hidden w-full mt-3 text-zinc-500 text-[9px] font-bold underline hover:text-yellow-500">
+                    Alle anzeigen
+                </button>
             </div>
 
             <!-- Admin Panel -->
@@ -299,20 +363,20 @@
         // KONFIGURATION - HIER DEINE DATEN EINTRAGEN
         // ============================================
         
-        const SUPABASE_URL = "https://aggpjaxpupqbsefsusok.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnZ3BqYXhwdXBxYnNlZnN1c29rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyNzgxOTcsImV4cCI6MjA4NTg1NDE5N30.66Q-q1EIdn4_EWf_TCOanxwQ-_qB6-FaAYdHCYbLkHk"; // NUR ANON KEY!
+        const SUPABASE_URL = "DEINE_SUPABASE_URL_HIER";
+        const SUPABASE_ANON_KEY = "DEINE_ANON_KEY_HIER"; // NUR ANON KEY!
         
         // EmailJS Konfiguration
-        const EJS_PUBLIC_KEY = "MkRGHMZNkwKnmQDLY";
-        const EJS_SERVICE = "service_z1cwhnt";
-        const EJS_ADMIN_TEMPLATE = "template_avultfe";
-        const EJS_USER_TEMPLATE = "template_22cjt73";
+        const EJS_PUBLIC_KEY = "DEIN_EMAILJS_PUBLIC_KEY";
+        const EJS_SERVICE = "DEIN_SERVICE_ID";
+        const EJS_ADMIN_TEMPLATE = "DEIN_ADMIN_TEMPLATE_ID";
+        const EJS_USER_TEMPLATE = "DEIN_USER_TEMPLATE_ID";
         
         // Admin-Email (wird aus Datenbank gelesen, siehe SQL)
-        const ADMIN_EMAIL = "def4lt123@gmail.com"; // Backup-Wert
+        const ADMIN_EMAIL = "admin@example.com"; // Backup-Wert
         
         // Registrierungs-Code
-        const MASTER_REG_CODE = "FLO2026";
+        const MASTER_REG_CODE = "DEIN_REG_CODE";
         
         // ============================================
         // GLOBALE VARIABLEN
@@ -322,6 +386,10 @@
         let currentUser = null, userProfile = null, selectedDates = [], currentViewDate = new Date(), currentModalBookingId = null;
         
         let confirmCallback = null, inputCallback = null;
+        let realtimeChannel = null;
+        let showAllBookings = false;
+        let pullStartY = 0;
+        let isPulling = false;
 
         // ============================================
         // INITIALISIERUNG
@@ -365,6 +433,8 @@
                 
                 await loadGlobalStatus();
                 renderUserSection();
+                setupRealtimeSubscription();
+                setupPullToRefresh();
                 
             } catch (err) {
                 console.error(err);
@@ -823,11 +893,143 @@
             const userBookings = data.filter(x => x.user_id === currentUser.id).sort((a,b) => b.requested_date.localeCompare(a.requested_date));
             if (userBookings.length === 0) {
                 uL.innerHTML = '<p class="text-[9px] text-zinc-600">Noch keine Buchungen</p>';
+                document.getElementById('toggle-bookings-btn').classList.add('hidden');
             } else {
-                userBookings.forEach(b => {
+                const displayCount = showAllBookings ? userBookings.length : Math.min(5, userBookings.length);
+                const displayBookings = userBookings.slice(0, displayCount);
+                
+                displayBookings.forEach(b => {
                     uL.innerHTML += `<div onclick='openModal(${JSON.stringify(b)})' class="p-4 bg-zinc-800/30 rounded-2xl flex justify-between items-center text-[9px] font-bold border border-zinc-800 cursor-pointer"><div>${b.requested_date}</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
                 });
+                
+                // Toggle button nur anzeigen wenn mehr als 5 Buchungen
+                const toggleBtn = document.getElementById('toggle-bookings-btn');
+                if (userBookings.length > 5) {
+                    toggleBtn.classList.remove('hidden');
+                    toggleBtn.innerText = showAllBookings ? 'Weniger anzeigen' : `Alle ${userBookings.length} anzeigen`;
+                } else {
+                    toggleBtn.classList.add('hidden');
+                }
             }
+        }
+
+        // Collapsible Bookings Toggle
+        function toggleBookings() {
+            showAllBookings = !showAllBookings;
+            fetchAndRender();
+        }
+
+        // Realtime Subscription Setup
+        function setupRealtimeSubscription() {
+            // Alte Subscription entfernen falls vorhanden
+            if (realtimeChannel) {
+                supabaseClient.removeChannel(realtimeChannel);
+            }
+
+            // Neue Subscription erstellen
+            realtimeChannel = supabaseClient
+                .channel('bookings-changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'bookings'
+                    },
+                    (payload) => {
+                        console.log('Realtime update:', payload);
+                        fetchAndRender();
+                        showToast('📡 Kalender aktualisiert', 'success');
+                    }
+                )
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log('Realtime connected!');
+                        document.getElementById('realtime-badge').classList.remove('hidden');
+                    }
+                });
+
+            // Auch Admin-Status änderungen abonnieren
+            supabaseClient
+                .channel('profiles-changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'profiles',
+                        filter: `email=eq.${ADMIN_EMAIL}`
+                    },
+                    (payload) => {
+                        console.log('Admin status updated:', payload);
+                        loadGlobalStatus();
+                    }
+                )
+                .subscribe();
+        }
+
+        // Pull to Refresh Setup (Mobile)
+        function setupPullToRefresh() {
+            const container = document.getElementById('app-container');
+            const indicator = document.getElementById('pull-refresh-indicator');
+
+            container.addEventListener('touchstart', (e) => {
+                if (container.scrollTop === 0) {
+                    pullStartY = e.touches[0].clientY;
+                    isPulling = true;
+                }
+            }, { passive: true });
+
+            container.addEventListener('touchmove', (e) => {
+                if (!isPulling) return;
+                
+                const touchY = e.touches[0].clientY;
+                const pullDistance = touchY - pullStartY;
+
+                if (pullDistance > 0 && pullDistance < 100) {
+                    indicator.style.top = `${-60 + pullDistance}px`;
+                    indicator.style.opacity = pullDistance / 100;
+                }
+
+                if (pullDistance >= 80) {
+                    indicator.classList.add('visible');
+                    indicator.innerText = '↑ Loslassen zum Aktualisieren';
+                }
+            }, { passive: true });
+
+            container.addEventListener('touchend', (e) => {
+                if (!isPulling) return;
+                
+                const touchY = e.changedTouches[0].clientY;
+                const pullDistance = touchY - pullStartY;
+
+                if (pullDistance >= 80) {
+                    indicator.innerText = '🔄 Lädt...';
+                    manualRefresh().then(() => {
+                        setTimeout(() => {
+                            indicator.classList.remove('visible');
+                            indicator.innerText = '↓ Ziehen zum Aktualisieren';
+                            indicator.style.top = '-60px';
+                            indicator.style.opacity = '0';
+                        }, 500);
+                    });
+                } else {
+                    indicator.classList.remove('visible');
+                    indicator.style.top = '-60px';
+                    indicator.style.opacity = '0';
+                }
+
+                isPulling = false;
+                pullStartY = 0;
+            }, { passive: true });
+        }
+
+        // Manual Refresh Function
+        async function manualRefresh() {
+            showToast('🔄 Aktualisiere...', 'info');
+            await fetchAndRender();
+            await loadGlobalStatus();
+            showToast('✅ Aktualisiert!', 'success');
         }
 
         async function processRequest(btn, id, status, email, date) {
@@ -910,6 +1112,10 @@
         }
 
         async function handleLogout() { 
+            // Realtime Subscription beenden
+            if (realtimeChannel) {
+                supabaseClient.removeChannel(realtimeChannel);
+            }
             await supabaseClient.auth.signOut(); 
             location.reload(); 
         }
