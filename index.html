@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V4.2</title>
+    <title>Springerplan made by Flo - V4.3</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -138,7 +138,7 @@
     <div id="pull-refresh-indicator" class="pull-to-refresh">
         <div class="text-zinc-400 text-xs font-bold flex items-center gap-2">
             <div class="spinner"></div>
-            <span id="pull-refresh-text">Ziehen zum Aktualisieren...</span>
+            <span id="pull-refresh-text">↓ Ziehen zum Aktualisieren</span>
         </div>
     </div>
 
@@ -208,7 +208,7 @@
                 <div class="text-center mb-8">
                     <div class="text-6xl mb-4">📅</div>
                     <h1 class="text-3xl font-black text-yellow-500 mb-1">SPRINGERPLAN</h1>
-                    <p class="text-zinc-500 text-xs font-bold uppercase">V4.2</p>
+                    <p class="text-zinc-500 text-xs font-bold uppercase">V4.3</p>
                 </div>
                 
                 <div class="bg-zinc-900 p-6 rounded-[2rem] shadow-2xl border border-zinc-800">
@@ -353,7 +353,6 @@
         let confirmCallback = null;
         let inputCallback = null;
         let bookingsExpanded = false;
-        let realtimeChannel = null;
 
         // Pull-to-Refresh Variables
         let pullStartY = 0;
@@ -400,10 +399,10 @@
                 if (pullDistance > 0 && pullDistance < 100) {
                     indicator.style.opacity = pullDistance / 100;
                     indicator.style.transform = `translateY(${pullDistance - 60}px)`;
-                    text.textContent = 'Ziehen zum Aktualisieren...';
+                    text.textContent = '↓ Ziehen zum Aktualisieren';
                 } else if (pullDistance >= 100) {
                     indicator.classList.add('visible');
-                    text.textContent = 'Loslassen zum Aktualisieren';
+                    text.textContent = '↑ Loslassen zum Aktualisieren';
                 }
             }, { passive: true });
 
@@ -455,66 +454,15 @@
         }
 
         // ============================================
-        // REALTIME UPDATES (Supabase)
+        // REALTIME UPDATES (DEAKTIVIERT)
         // ============================================
+        // Realtime-Updates sind für mobile Nutzung nicht notwendig
+        // Pull-to-Refresh ist die bessere Lösung für 95% mobile User
 
         function setupRealtimeUpdates() {
-            try {
-                // Unsubscribe from previous channel if exists
-                if (realtimeChannel) {
-                    supabaseClient.removeChannel(realtimeChannel);
-                }
-
-                // Subscribe to bookings table changes
-                realtimeChannel = supabaseClient
-                    .channel('bookings-changes')
-                    .on(
-                        'postgres_changes',
-                        { event: '*', schema: 'public', table: 'bookings' },
-                        async (payload) => {
-                            console.log('Realtime update:', payload);
-                            
-                            // Silently refresh data in background
-                            try {
-                                await fetchAndRender(true); // true = silent mode, no toast
-                            } catch (err) {
-                                console.error('Error during realtime refresh:', err);
-                            }
-                        }
-                    )
-                    .subscribe((status) => {
-                        if (status === 'SUBSCRIBED') {
-                            console.log('✅ Realtime updates aktiv');
-                        } else if (status === 'CHANNEL_ERROR') {
-                            console.warn('⚠️ Realtime updates nicht verfügbar - Pull-to-Refresh nutzen');
-                        }
-                    });
-
-                // Also listen to profile changes for admin
-                if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                    supabaseClient
-                        .channel('profile-changes')
-                        .on(
-                            'postgres_changes',
-                            { event: '*', schema: 'public', table: 'profiles' },
-                            async () => {
-                                try {
-                                    await fetchAndRender(true);
-                                } catch (err) {
-                                    console.error('Error during profile refresh:', err);
-                                }
-                            }
-                        )
-                        .subscribe((status) => {
-                            if (status === 'SUBSCRIBED') {
-                                console.log('✅ Profile updates aktiv');
-                            }
-                        });
-                }
-            } catch (err) {
-                // Realtime is optional - app works fine with pull-to-refresh
-                console.warn('Realtime updates konnten nicht aktiviert werden:', err);
-            }
+            // Realtime deaktiviert - Pull-to-Refresh verwenden
+            console.log('ℹ️ Realtime-Updates deaktiviert - Pull-to-Refresh nutzen');
+            return;
         }
 
         // ============================================
@@ -1108,15 +1056,6 @@
         }
 
         async function handleLogout() { 
-            try {
-                // Cleanup realtime subscriptions
-                if (realtimeChannel) {
-                    await supabaseClient.removeChannel(realtimeChannel);
-                }
-            } catch (err) {
-                console.warn('Fehler beim Cleanup:', err);
-            }
-            
             await supabaseClient.auth.signOut(); 
             location.reload(); 
         }
