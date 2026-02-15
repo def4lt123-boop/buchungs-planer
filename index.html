@@ -1044,8 +1044,6 @@
                     
                     const { error } = await supabaseClient.from('bookings').insert(ins);
                     
-                    setBtnLoading('btn-submit', false); // WICHTIG: Vor clearSelection
-                    
                     if (!error) { 
                         emailjs.init(EJS_PUBLIC_KEY); 
                         emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { 
@@ -1055,9 +1053,12 @@
                             reason: reason || "-" 
                         }); 
                         showToast('✅ Anfrage erfolgreich gesendet!', 'success');
-                        clearSelection(); // Jetzt erst clearSelection nach setBtnLoading
+                        
+                        // Page Refresh nach erfolgreicher Anfrage
+                        setTimeout(() => location.reload(), 800);
                     } else {
                         showToast('❌ Fehler: ' + error.message, 'error');
+                        setBtnLoading('btn-submit', false);
                     }
                 }
             );
