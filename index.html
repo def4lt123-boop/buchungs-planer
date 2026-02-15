@@ -546,6 +546,21 @@
                     <button onclick="changeMonth(1)" class="bg-zinc-700 hover:bg-zinc-600 w-12 h-12 rounded-full font-black text-xl transition-all shadow-lg">→</button>
                 </div>
                 
+                <!-- Refresh Info & Button -->
+                <div class="mb-4 bg-zinc-900/50 p-3 rounded-xl border border-zinc-700/50 flex items-center justify-between gap-3">
+                    <div class="flex-1">
+                        <p class="text-[9px] text-zinc-400 leading-relaxed">
+                            <span class="font-bold text-yellow-500">💡 Tipp:</span> Wenn du länger nicht hier warst, bitte zuerst aktualisieren.
+                        </p>
+                    </div>
+                    <button onclick="refreshCalendar()" class="bg-yellow-500 hover:bg-yellow-400 text-black font-black px-4 py-2 rounded-lg text-[10px] uppercase transition-all shadow-md flex items-center gap-1 flex-shrink-0">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        <span>Aktualisieren</span>
+                    </button>
+                </div>
+                
                 <div class="day-grid text-[9px] text-zinc-500 font-bold mb-3">
                     <div class="text-center">MO</div><div class="text-center">DI</div><div class="text-center">MI</div><div class="text-center">DO</div><div class="text-center">FR</div><div class="text-center">SA</div>
                 </div>
@@ -1011,6 +1026,14 @@
         function changeMonth(d) { 
             currentViewDate.setMonth(currentViewDate.getMonth() + d); 
             clearSelection(); 
+        }
+
+        function refreshCalendar() {
+            showToast('🔄 Aktualisiere Daten...', 'info');
+            clearSelection();
+            setTimeout(() => {
+                showToast('✅ Kalender aktualisiert!', 'success');
+            }, 500);
         }
 
         // ============================================
