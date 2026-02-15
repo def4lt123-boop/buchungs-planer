@@ -19,7 +19,7 @@
         /* === KALENDER - Mobile-Optimiert === */
         .day-grid { 
             display: grid; 
-            grid-template-columns: repeat(7, 1fr); 
+            grid-template-columns: repeat(6, 1fr); /* 6 Tage: Mo-Sa */
             gap: 6px; /* Mehr Abstand für bessere Touch-Targets */
         }
         
@@ -454,7 +454,7 @@
                 </div>
                 
                 <div class="day-grid text-[9px] text-zinc-500 font-bold mb-3">
-                    <div class="text-center">MO</div><div class="text-center">DI</div><div class="text-center">MI</div><div class="text-center">DO</div><div class="text-center">FR</div><div class="text-center">SA</div><div class="text-center">SO</div>
+                    <div class="text-center">MO</div><div class="text-center">DI</div><div class="text-center">MI</div><div class="text-center">DO</div><div class="text-center">FR</div><div class="text-center">SA</div>
                 </div>
                 
                 <div id="calendar-grid" class="day-grid"></div>
@@ -485,7 +485,7 @@
                 <div class="bg-red-900/20 border-2 border-red-500 p-5 rounded-3xl">
                     <h3 class="text-red-500 font-black text-base uppercase mb-5 tracking-wide">Admin Kalender-Editor</h3>
                     <div class="day-grid text-[9px] text-zinc-500 font-bold mb-3">
-                        <div class="text-center">MO</div><div class="text-center">DI</div><div class="text-center">MI</div><div class="text-center">DO</div><div class="text-center">FR</div><div class="text-center">SA</div><div class="text-center">SO</div>
+                        <div class="text-center">MO</div><div class="text-center">DI</div><div class="text-center">MI</div><div class="text-center">DO</div><div class="text-center">FR</div><div class="text-center">SA</div>
                     </div>
                     <div id="admin-calendar-grid" class="day-grid"></div>
                 </div>
@@ -706,14 +706,14 @@
             const banner = document.getElementById('status-banner'), hl = document.getElementById('status-headline'), sl = document.getElementById('status-subline');
             if (stat.sick) { 
                 banner.classList.remove('hidden'); 
-                hl.innerText = 'Flo ist KRANK'; 
-                sl.innerText = 'Bitte nur in Notfällen anfragen'; 
+                hl.innerText = 'Bin derzeit Krank'; 
+                sl.innerText = 'Anfragen werden evtl. Verzögert beantwortet.'; 
                 banner.style.background = 'linear-gradient(135deg, #fca5a5 0%, #f87171 100%)'; 
                 banner.style.color = '#7f1d1d'; 
             } else if (stat.vacation) { 
                 banner.classList.remove('hidden'); 
-                hl.innerText = 'Flo ist im URLAUB'; 
-                sl.innerText = 'Antworte erst nach Rückkehr'; 
+                hl.innerText = 'Bin aktuell im Urlaub'; 
+                sl.innerText = 'Anfragen werden evtl. Verzögert beantwortet.'; 
                 banner.style.background = 'linear-gradient(135deg, #93c5fd 0%, #60a5fa 100%)'; 
                 banner.style.color = '#1e3a8a'; 
             } else { 
@@ -743,17 +743,23 @@
                 document.getElementById('month-name').innerText = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(currentViewDate);
             }
             
+            // Empty cells for offset (Mo-Sa = 0-5, no Sunday)
             for (let x = 0; x < startDay; x++) grid.innerHTML += `<div></div>`;
             
             for (let d = 1; d <= daysInMonth; d++) {
                 const dateObj = new Date(year, month, d);
+                const dayOfWeek = dateObj.getDay();
+                
+                // SKIP SUNDAYS (dayOfWeek === 0)
+                if (dayOfWeek === 0) continue;
+                
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 const b = allBookings.find(x => x.requested_date === dateStr && x.status !== 'rejected');
                 let cls = "day-free", label = "", disabled = false, isBusy = false;
                 
                 // FIX: String-Vergleich für vergangene Tage
                 if (!isArchiveMode) { 
-                    if (dateStr < todayStr || dateObj.getDay() === 0 || isAustrianHoliday(dateObj)) { 
+                    if (dateStr < todayStr || isAustrianHoliday(dateObj)) { 
                         disabled = true; 
                         cls = "day-disabled"; 
                     } 
