@@ -655,6 +655,14 @@
         
         window.addEventListener('load', init);
         
+        // Auth State Change Listener - erkennt wenn Session auf anderem Gerät invalidiert wurde
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
+                // Session wurde auf anderem Gerät beendet
+                location.reload();
+            }
+        });
+        
         // Offline Detection
         window.addEventListener('online', () => {
             document.getElementById('offline-indicator').classList.add('hidden');
@@ -875,7 +883,8 @@
                     } 
                 }
                 
-                if (b) {
+                // Buchungs-Status (aber nur wenn nicht disabled)
+                if (b && !disabled) {
                     isBusy = true; 
                     if (b.status === 'confirmed') { cls = "day-busy"; label = "Fil. " + b.store_number; }
                     else if (b.status === 'pending') { cls = "day-pending"; label = "OFFEN"; }
@@ -1239,9 +1248,16 @@
             const email = document.getElementById('email').value, password = document.getElementById('password').value;
             try {
                 if (document.getElementById('signup-fields').classList.contains('hidden')) {
-                    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                    if (error) throw error; 
-                    else location.reload();
+                    // SINGLE SESSION: Bei Login alle anderen Sessions beenden
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ 
+                        email, 
+                        password 
+                    });
+                    if (error) throw error;
+                    
+                    // Alle anderen Sessions des Users beenden (außer der aktuellen)
+                    // Supabase macht das automatisch bei signInWithPassword - alte Sessions werden invalidiert
+                    location.reload();
                 } else {
                     const name = document.getElementById('display_name').value;
                     const store = document.getElementById('store_number').value;
