@@ -1026,7 +1026,7 @@
             showInput(
                 'Anfrage senden',
                 'Optionale Nachricht/Grund für die Anfrage:',
-                'z.B. "Brauche einen Tag frei..."',
+                'z.B. *** ist krank',
                 async (reason) => {
                     if (reason === null) return; // Abgebrochen
                     
@@ -1044,6 +1044,8 @@
                     
                     const { error } = await supabaseClient.from('bookings').insert(ins);
                     
+                    setBtnLoading('btn-submit', false); // WICHTIG: Vor clearSelection
+                    
                     if (!error) { 
                         emailjs.init(EJS_PUBLIC_KEY); 
                         emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { 
@@ -1053,12 +1055,10 @@
                             reason: reason || "-" 
                         }); 
                         showToast('✅ Anfrage erfolgreich gesendet!', 'success');
-                        clearSelection(); 
+                        clearSelection(); // Jetzt erst clearSelection nach setBtnLoading
                     } else {
                         showToast('❌ Fehler: ' + error.message, 'error');
                     }
-                    
-                    setBtnLoading('btn-submit', false);
                 }
             );
         }
