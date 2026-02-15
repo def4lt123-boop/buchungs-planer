@@ -325,13 +325,19 @@
 
         /* === LOGIN SCREEN BEAUTIFICATION === */
         #auth-section {
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 2rem 1rem;
+            background: #000000;
+            z-index: 10000;
         }
 
         /* Animated Background Gradient */
@@ -576,6 +582,34 @@
         </div>
     </div>
 
+    <!-- Auth Section - Outside of app-container for fullscreen -->
+    <div id="auth-section" class="hidden animate-fadeIn">
+        <!-- Logo -->
+        <div class="login-logo">
+            📅
+        </div>
+        
+        <!-- Login Card -->
+        <div class="login-card">
+            <h1 class="login-title text-center">Springerplan</h1>
+            <div class="made-by-badge">made by Flo</div>
+            
+            <div class="space-y-4">
+                <input id="email" type="email" placeholder="E-Mail" class="login-input w-full p-5 rounded-2xl outline-none text-base">
+                <input id="password" type="password" placeholder="Passwort" class="login-input w-full p-5 rounded-2xl outline-none text-base">
+                
+                <div id="signup-fields" class="hidden space-y-4 pt-2">
+                    <input id="display_name" type="text" placeholder="Dein Name" class="login-input w-full p-5 rounded-2xl outline-none text-base">
+                    <input id="store_number" type="text" placeholder="Filiale" class="login-input w-full p-5 rounded-2xl outline-none text-base">
+                    <input id="reg_code" type="text" placeholder="Registrierungs-Code" class="login-input w-full p-5 rounded-2xl outline-none text-base">
+                </div>
+                
+                <button id="auth-btn-main" onclick="handleAuthAction()" class="login-button w-full text-black font-black py-5 rounded-2xl uppercase text-sm mt-6">Login</button>
+                <button id="toggle-auth-btn" onclick="toggleAuthMode()" class="toggle-auth-btn w-full text-center underline">Konto erstellen</button>
+            </div>
+        </div>
+    </div>
+
     <div id="app-container" class="max-w-md mx-auto min-h-screen p-4 bg-zinc-900 shadow-2xl pb-60 relative">
         
         <!-- Status Banner -->
@@ -594,34 +628,6 @@
             <p class="font-bold text-base">FEHLER BEIM LADEN</p>
             <p id="error-msg" class="text-[10px] mt-2 text-zinc-500"></p>
             <button onclick="handleLogout()" class="mt-5 text-white underline bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-xl transition-colors">Notfall Logout</button>
-        </div>
-
-        <!-- Auth Section -->
-        <div id="auth-section" class="hidden animate-fadeIn">
-            <!-- Logo -->
-            <div class="login-logo">
-                📅
-            </div>
-            
-            <!-- Login Card -->
-            <div class="login-card">
-                <h1 class="login-title text-center">Springerplan</h1>
-                <div class="made-by-badge">made by Flo</div>
-                
-                <div class="space-y-4">
-                    <input id="email" type="email" placeholder="E-Mail" class="login-input w-full p-5 rounded-2xl outline-none text-base">
-                    <input id="password" type="password" placeholder="Passwort" class="login-input w-full p-5 rounded-2xl outline-none text-base">
-                    
-                    <div id="signup-fields" class="hidden space-y-4 pt-2">
-                        <input id="display_name" type="text" placeholder="Dein Name" class="login-input w-full p-5 rounded-2xl outline-none text-base">
-                        <input id="store_number" type="text" placeholder="Filiale" class="login-input w-full p-5 rounded-2xl outline-none text-base">
-                        <input id="reg_code" type="text" placeholder="Registrierungs-Code" class="login-input w-full p-5 rounded-2xl outline-none text-base">
-                    </div>
-                    
-                    <button id="auth-btn-main" onclick="handleAuthAction()" class="login-button w-full text-black font-black py-5 rounded-2xl uppercase text-sm mt-6">Login</button>
-                    <button id="toggle-auth-btn" onclick="toggleAuthMode()" class="toggle-auth-btn w-full text-center underline">Konto erstellen</button>
-                </div>
-            </div>
         </div>
 
         <!-- Main App Content -->
