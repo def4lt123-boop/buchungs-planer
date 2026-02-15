@@ -768,11 +768,31 @@
             confirmCallback = null;
         }
 
-        function showInput(title, label, placeholder, callback) {
+        function showInput(title, label, placeholder, callback, options = {}) {
             document.getElementById('input-title').innerText = title;
             document.getElementById('input-label').innerText = label;
-            document.getElementById('input-field').placeholder = placeholder;
-            document.getElementById('input-field').value = '';
+            const inputField = document.getElementById('input-field');
+            inputField.placeholder = placeholder;
+            inputField.value = '';
+            
+            // Optionale numerische Validierung
+            if (options.numericOnly) {
+                inputField.type = 'text';
+                inputField.inputMode = 'numeric';
+                inputField.maxLength = options.maxLength || '';
+                inputField.oninput = function() {
+                    this.value = this.value.replace(/[^0-9]/g, '');
+                    if (options.maxLength) {
+                        this.value = this.value.slice(0, options.maxLength);
+                    }
+                };
+            } else {
+                inputField.type = 'text';
+                inputField.inputMode = 'text';
+                inputField.maxLength = '';
+                inputField.oninput = null;
+            }
+            
             document.getElementById('input-modal').classList.remove('hidden');
             inputCallback = callback;
         }
@@ -1076,22 +1096,30 @@
             if (type === 'direkt') {
                 showInput(
                     'Direkt buchen',
-                    'Filiale eingeben:',
-                    '099',
+                    'Filiale eingeben (3 Zahlen):',
+                    'z.B. 039, 079, 109',
                     async (fil) => {
                         if (!fil) return;
-                        showInput(
-                            'Direkt buchen',
-                            'Name eingeben:',
-                            'Max Mustermann',
-                            async (name) => {
-                                if (!name) return;
-                                await supabaseClient.from('bookings').insert(insData('confirmed', fil, name));
-                                showToast('✅ Direkt gebucht', 'success');
-                                clearSelection();
-                            }
-                        );
-                    }
+                        
+                        // Validierung: genau 3 Zahlen erforderlich
+                        if (fil.length !== 3) {
+                            showToast('❌ Bitte genau 3 Zahlen eingeben', 'error');
+                            return;
+                        }
+                        
+                        // Name automatisch aus Admin-Profil holen
+                        const { data: profile } = await supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).single();
+                        const adminName = profile ? profile.display_name : 'Admin';
+                        
+                        const { error } = await supabaseClient.from('bookings').insert(insData('confirmed', fil, adminName));
+                        if (error) {
+                            showToast('❌ Fehler: ' + error.message, 'error');
+                        } else {
+                            showToast('✅ Direkt gebucht', 'success');
+                            clearSelection();
+                        }
+                    },
+                    { numericOnly: true, maxLength: 3 }
                 );
             } else if (type === 'urlaub') {
                 showConfirm(
