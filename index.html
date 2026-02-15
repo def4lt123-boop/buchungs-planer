@@ -896,10 +896,9 @@
             const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
             document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
             
-            // Show install button on iOS (Android shows it via beforeinstallprompt event)
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            // Show install button if NOT already installed (both iOS and Android)
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-            if (isIOS && !isStandalone) {
+            if (!isStandalone) {
                 document.getElementById('install-btn').classList.remove('hidden');
             }
             
@@ -1415,7 +1414,7 @@
                 // Show iOS instructions
                 document.getElementById('ios-install-modal').classList.remove('hidden');
             } else if (deferredPrompt) {
-                // Android: Trigger install prompt
+                // Android: Trigger native install prompt
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then((choiceResult) => {
                     if (choiceResult.outcome === 'accepted') {
@@ -1425,9 +1424,17 @@
                     document.getElementById('install-btn').classList.add('hidden');
                 });
             } else {
-                // Already installed or not supported
-                showToast('ℹ️ App bereits installiert oder nicht verfügbar', 'info');
+                // Android without native prompt OR already installed
+                // Show manual instructions
+                showAndroidInstallInstructions();
             }
+        }
+
+        function showAndroidInstallInstructions() {
+            showConfirm(
+                'Um die App zu installieren:\n\n1. Öffne das Chrome-Menü (⋮)\n2. Tippe auf "App installieren" oder "Zum Startbildschirm hinzufügen"\n\nAlternativ: Die App ist möglicherweise bereits installiert.',
+                () => {}
+            );
         }
 
         function closeInstallModal() {
