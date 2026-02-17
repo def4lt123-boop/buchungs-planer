@@ -543,7 +543,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                             </svg>
                         </div>
-                        <input id="store_number" type="text" placeholder="z.B. 039, 079, 109" maxlength="3" pattern="[0-9]{3}" inputmode="numeric"
+                        <input id="store_number" type="text" placeholder="Fil. Nr. z.B. 039, 079, 109" maxlength="3" pattern="[0-9]{3}" inputmode="numeric"
                                class="w-full pl-12 pr-5 py-5 bg-zinc-800/50 backdrop-blur-sm rounded-2xl outline-none border-2 border-zinc-700/50 text-base transition-all focus:border-yellow-500/50 focus:bg-zinc-800"
                                oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 3)">
                     </div>
@@ -609,7 +609,7 @@
                     <div class="legend-item"><div class="legend-box day-pending"></div><span>Anfrage</span></div>
                     <div class="legend-item"><div class="legend-box day-vacation"></div><span>Urlaub</span></div>
                     <div class="legend-item"><div class="legend-box day-sick"></div><span>Krank</span></div>
-                    <div class="legend-item"><div class="legend-box day-planned-free"></div><span>Geplant Frei</span></div>
+                    <div class="legend-item"><div class="legend-box day-planned-free"></div><span>Geplant ZA</span></div>
                 </div>
             </div>
 
@@ -701,7 +701,7 @@
                 <button onclick="submitAdminAction('direkt')" class="bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Direkt buchen</button>
                 <button onclick="submitAdminAction('urlaub')" class="bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Urlaub</button>
                 <button onclick="submitAdminAction('krank')" class="bg-red-900 hover:bg-red-800 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Krank</button>
-                <button onclick="submitAdminAction('planned_free')" class="bg-purple-600 hover:bg-purple-500 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Geplant Frei</button>
+                <button onclick="submitAdminAction('planned_free')" class="bg-purple-600 hover:bg-purple-500 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Geplant ZA</button>
             </div>
             <button onclick="submitAdminAction('frei')" class="w-full bg-green-600 hover:bg-green-500 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Tage freigeben</button>
         </div>
@@ -1223,7 +1223,7 @@
                 showInput(
                     'Direkt buchen',
                     'Filiale eingeben (3 Zahlen):',
-                    'z.B. 039, 079, 109',
+                    'Fil. Nr. z.B. 039, 079, 109',
                     async (fil) => {
                         if (!fil) return;
                         
@@ -1267,10 +1267,10 @@
                 );
             } else if (type === 'planned_free') {
                 showConfirm(
-                    `${selectedDates.length} Tage als GEPLANT FREI markieren?`,
+                    `${selectedDates.length} Tage als Geplant ZA markieren?`,
                     async () => {
                         await supabaseClient.from('bookings').insert(insData('planned_free', 'FREI', 'Admin'));
-                        showToast('✅ Geplant Frei eingetragen', 'success');
+                        showToast('✅ Geplant ZA eingetragen', 'success');
                         clearSelection();
                     }
                 );
