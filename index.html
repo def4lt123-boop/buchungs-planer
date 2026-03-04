@@ -928,7 +928,7 @@
             toast.style.background = type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#18181b';
             toast.innerText = message;
             document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
+            setTimeout(() => toast.remove(), message.length > 50 ? 6000 : 3000);
         }
 
         function setBtnLoading(btnId, isLoading, text = '') {
@@ -1653,7 +1653,7 @@
                     if (error) {
                         showToast('❌ Fehler: ' + error.message, 'error');
                     } else {
-                        showToast('✅ Reset-Email wurde gesendet!', 'success');
+                        showToast('✅ Email gesendet! Die Mail kommt von Supabase – bitte auch den Spam-Ordner prüfen.', 'success');
                     }
                 }
             );
