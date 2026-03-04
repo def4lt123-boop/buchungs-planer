@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V4.1</title>
+    <title>Springerplan made by Flo - V4.0 Mobile</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -593,7 +593,7 @@
             
             <!-- Footer -->
             <div class="mt-16 text-center text-zinc-600 text-xs relative z-10">
-                <p>© 2026 Springerplan • Version 4.1</p>
+                <p>© 2026 Springerplan • Version 4.0</p>
             </div>
         </div>
 
@@ -1426,11 +1426,22 @@
             showConfirm(
                 `Stornierung für ${b.requested_date} anfragen? Der Admin muss diese noch bestätigen.`,
                 async () => {
-                    const { error } = await supabaseClient.from('bookings').update({ status: 'cancel_pending' }).eq('id', b.id);
+                    const { data: updated, error } = await supabaseClient
+                        .from('bookings')
+                        .update({ status: 'cancel_pending' })
+                        .eq('id', b.id)
+                        .select();
+
                     if (error) {
                         showToast('❌ Fehler: ' + error.message, 'error');
                         return;
                     }
+
+                    if (!updated || updated.length === 0) {
+                        showToast('❌ Update fehlgeschlagen – Supabase RLS blockiert. Bitte Policy prüfen.', 'error');
+                        return;
+                    }
+
                     // Email an Admin
                     emailjs.init(EJS_PUBLIC_KEY);
                     emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, {
