@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V4.0 Mobile</title>
+    <title>Springerplan made by Flo - V4.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -593,7 +593,7 @@
             
             <!-- Footer -->
             <div class="mt-16 text-center text-zinc-600 text-xs relative z-10">
-                <p>© 2026 Springerplan • Version 4.0</p>
+                <p>© 2026 Springerplan • Version 4.1</p>
             </div>
         </div>
 
@@ -626,8 +626,7 @@
                     <div class="legend-item"><div class="legend-box day-pending"></div><span>Anfrage</span></div>
                     <div class="legend-item"><div class="legend-box day-vacation"></div><span>Urlaub</span></div>
                     <div class="legend-item"><div class="legend-box day-sick"></div><span>Krank</span></div>
-                    <div class="legend-item"><div class="legend-box day-planned-free"></div><span>Geplant ZA</span></div>
-                    <div class="legend-item"><div class="legend-box day-cancel-pending"></div><span>Storno?</span></div>
+                    <div class="legend-item"><div class="legend-box day-planned-free"></div><span>ZA</span></div>
                 </div>
             </div>
 
@@ -970,12 +969,40 @@
 
         async function fetchAndRender() {
             const { data } = await supabaseClient.from('bookings').select('*');
-            renderCalendar('calendar-grid', data || [], false);
-            renderLists(data || []);
+            const allData = data || [];
+            renderCalendar('calendar-grid', allData, false);
+            renderLists(allData);
             if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
-                renderCalendar('admin-calendar-grid', data || [], true);
+                renderCalendar('admin-calendar-grid', allData, true);
                 renderUserApproval();
+                renderCancelList(allData);
             }
+        }
+
+        function renderCancelList(data) {
+            const cL = document.getElementById('cancel-list');
+            if (!cL) return;
+            const cancelPending = data.filter(x => x.status === 'cancel_pending');
+            if (cancelPending.length === 0) {
+                cL.innerHTML = '<p class="text-[9px] text-zinc-600">Keine Stornierungsanfragen</p>';
+                return;
+            }
+            cL.innerHTML = '';
+            cancelPending.forEach(b => {
+                const safeId = b.id;
+                const safeEmail = (b.user_email || '').replace(/'/g, '');
+                const safeDate = (b.requested_date || '').replace(/'/g, '');
+                cL.innerHTML += `<div class="bg-orange-950/60 border border-orange-700 text-white p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold mb-2">
+                    <div>
+                        <span class="text-orange-300 font-black">${b.requested_date}</span><br>
+                        <span class="text-zinc-400">${b.display_name}</span>
+                    </div>
+                    <div class="flex gap-1">
+                        <button onclick="processCancelRequest(this,'${safeId}',true,'${safeEmail}','${safeDate}')" class="bg-green-600 text-white px-3 py-2 rounded-lg" title="Stornierung bestätigen">✓</button>
+                        <button onclick="processCancelRequest(this,'${safeId}',false,'${safeEmail}','${safeDate}')" class="bg-red-600 text-white px-3 py-2 rounded-lg" title="Ablehnen">✗</button>
+                    </div>
+                </div>`;
+            });
         }
 
         async function loadGlobalStatus() {
@@ -1351,7 +1378,6 @@
             const uL = document.getElementById('booking-list'), aL = document.getElementById('admin-list');
             uL.innerHTML = ''; 
             const pending = data.filter(x => x.status === 'pending');
-            const cancelPending = data.filter(x => x.status === 'cancel_pending');
             
             if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
                 // Offene Anfragen
@@ -1359,15 +1385,6 @@
                 pending.forEach(b => {
                     aL.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold"><div>${b.requested_date}<br><span class="text-zinc-500">${b.display_name}</span></div><div class="flex gap-1"><button onclick="processRequest(this, '${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button><button onclick="processRequest(this, '${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button></div></div>`;
                 });
-
-                // Stornierungsanfragen
-                const cL = document.getElementById('cancel-list');
-                if (cL) {
-                    cL.innerHTML = cancelPending.length ? '' : '<p class="text-[9px] text-zinc-600">Keine Stornierungsanfragen</p>';
-                    cancelPending.forEach(b => {
-                        cL.innerHTML += `<div class="bg-orange-950/60 border border-orange-700 text-white p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold"><div class="text-orange-300">${b.requested_date}<br><span class="text-zinc-400">${b.display_name}</span></div><div class="flex gap-1"><button onclick="processCancelRequest(this, '${b.id}', true, '${b.user_email}', '${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg" title="Stornierung bestätigen">✓</button><button onclick="processCancelRequest(this, '${b.id}', false, '${b.user_email}', '${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg" title="Stornierung ablehnen">X</button></div></div>`;
-                    });
-                }
             }
             
             const userBookings = data.filter(x => x.user_id === currentUser.id).sort((a,b) => b.requested_date.localeCompare(a.requested_date));
