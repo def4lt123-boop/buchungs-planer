@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V4.1 Mobile</title>
+    <title>Springerplan made by Flo - V4.2 Mobile</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -589,14 +589,22 @@
                         Noch kein Konto? <span class="text-yellow-500">Jetzt registrieren</span>
                     </button>
                 </div>
+
+                <!-- Passwort vergessen -->
+                <div id="forgot-pw-area" class="text-center pt-1">
+                    <button onclick="handlePasswordReset()" class="text-zinc-600 hover:text-zinc-400 text-xs transition-colors underline">
+                        Passwort vergessen?
+                    </button>
+                </div>
             </div>
             
             <!-- Footer -->
             <div class="mt-16 text-center text-zinc-600 text-xs relative z-10">
-                <p>© 2026 Springerplan • <button onclick="document.getElementById('changelog').classList.toggle('hidden')" class="text-zinc-500 hover:text-zinc-400 transition-colors underline">V4.1</button></p>
+                <p>© 2026 Springerplan • <button onclick="document.getElementById('changelog').classList.toggle('hidden')" class="text-zinc-500 hover:text-zinc-400 transition-colors underline">V4.2</button></p>
                 <div id="changelog" class="hidden mt-3 text-left bg-zinc-900/80 border border-zinc-700 rounded-xl p-4 space-y-2">
                     <p class="text-zinc-400 font-bold text-[10px] uppercase tracking-wide mb-2">Changelog</p>
-                    <div class="flex gap-2 text-[10px]"><span class="text-yellow-500 font-black shrink-0">V4.1</span><span class="text-zinc-400">Man kann jetzt eigene Buchungen wieder stornieren</span></div>
+                    <div class="flex gap-2 text-[10px]"><span class="text-yellow-500 font-black shrink-0">V4.2</span><span class="text-zinc-400">Passwort zurücksetzen, lesbares Datumsformat, Logout-Bestätigung</span></div>
+                    <div class="flex gap-2 text-[10px]"><span class="text-zinc-500 font-black shrink-0">V4.1</span><span class="text-zinc-500">Man kann jetzt eigene Buchungen wieder stornieren</span></div>
                     <div class="flex gap-2 text-[10px]"><span class="text-zinc-500 font-black shrink-0">V4.0</span><span class="text-zinc-500">Release Version</span></div>
                 </div>
             </div>
@@ -607,10 +615,11 @@
             
             <!-- User Info Header -->
             <div class="bg-zinc-800 p-6 rounded-3xl border border-zinc-700">
-                <p class="text-center text-zinc-600 text-[10px] mb-3"><button onclick="document.getElementById('changelog-main').classList.toggle('hidden')" class="hover:text-zinc-400 transition-colors underline">V4.1 · Änderungen anzeigen</button></p>
+                <p class="text-center text-zinc-600 text-[10px] mb-3"><button onclick="document.getElementById('changelog-main').classList.toggle('hidden')" class="hover:text-zinc-400 transition-colors underline">V4.2 · Änderungen anzeigen</button></p>
                 <div id="changelog-main" class="hidden mb-4 bg-zinc-900/80 border border-zinc-700 rounded-xl p-3 space-y-2">
                     <p class="text-zinc-400 font-bold text-[10px] uppercase tracking-wide mb-2">Changelog</p>
-                    <div class="flex gap-2 text-[10px]"><span class="text-yellow-500 font-black shrink-0">V4.1</span><span class="text-zinc-400">Man kann jetzt eigene Buchungen wieder stornieren</span></div>
+                    <div class="flex gap-2 text-[10px]"><span class="text-yellow-500 font-black shrink-0">V4.2</span><span class="text-zinc-400">Passwort zurücksetzen, lesbares Datumsformat, Logout-Bestätigung</span></div>
+                    <div class="flex gap-2 text-[10px]"><span class="text-zinc-500 font-black shrink-0">V4.1</span><span class="text-zinc-500">Man kann jetzt eigene Buchungen wieder stornieren</span></div>
                     <div class="flex gap-2 text-[10px]"><span class="text-zinc-500 font-black shrink-0">V4.0</span><span class="text-zinc-500">Release Version</span></div>
                 </div>
                 <div class="flex justify-between items-start gap-4">
@@ -871,6 +880,13 @@
 
         // ============================================
         // HELPER FUNCTIONS
+
+        function formatDate(dateStr) {
+            if (!dateStr) return dateStr;
+            const [y, m, d] = dateStr.split('-').map(Number);
+            const date = new Date(y, m - 1, d);
+            return new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: 'numeric', month: 'long' }).format(date);
+        }
         // ============================================
 
         function showToast(message, type = 'info') {
@@ -1005,7 +1021,7 @@
                 const safeDate = (b.requested_date || '').replace(/'/g, '');
                 cL.innerHTML += `<div class="bg-orange-950/60 border border-orange-700 text-white p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold mb-2">
                     <div>
-                        <span class="text-orange-300 font-black">${b.requested_date}</span><br>
+                        <span class="text-orange-300 font-black">${formatDate(b.requested_date)}</span><br>
                         <span class="text-zinc-400">${b.display_name}</span>
                     </div>
                     <div class="flex gap-1">
@@ -1394,7 +1410,7 @@
                 // Offene Anfragen
                 aL.innerHTML = pending.length ? '' : '<p class="text-[9px] text-zinc-600">Keine Anfragen</p>';
                 pending.forEach(b => {
-                    aL.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold"><div>${b.requested_date}<br><span class="text-zinc-500">${b.display_name}</span></div><div class="flex gap-1"><button onclick="processRequest(this, '${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button><button onclick="processRequest(this, '${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button></div></div>`;
+                    aL.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold"><div>${formatDate(b.requested_date)}<br><span class="text-zinc-500">${b.display_name}</span></div><div class="flex gap-1"><button onclick="processRequest(this, '${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button><button onclick="processRequest(this, '${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button></div></div>`;
                 });
             }
             
@@ -1410,7 +1426,7 @@
                 const displayBookings = userBookings.slice(0, displayCount);
                 
                 displayBookings.forEach(b => {
-                    uL.innerHTML += `<div onclick='openModal(${JSON.stringify(b)})' class="p-4 bg-zinc-800/30 rounded-2xl flex justify-between items-center text-[9px] font-bold border border-zinc-800 cursor-pointer hover:bg-zinc-800/50 transition-colors"><div>${b.requested_date}</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
+                    uL.innerHTML += `<div onclick='openModal(${JSON.stringify(b)})' class="p-4 bg-zinc-800/30 rounded-2xl flex justify-between items-center text-[9px] font-bold border border-zinc-800 cursor-pointer hover:bg-zinc-800/50 transition-colors"><div>${formatDate(b.requested_date)}</div><div class="uppercase text-yellow-500">${b.status}</div></div>`;
                 });
                 
                 // Show toggle button only if more than 5 bookings
@@ -1588,9 +1604,33 @@
             document.getElementById('auth-btn-main').innerText = isHidden ? "Login" : "Registrieren"; 
         }
 
+        async function handlePasswordReset() {
+            const emailField = document.getElementById('email');
+            const email = emailField ? emailField.value.trim() : '';
+            if (!email) {
+                showToast('⚠️ Bitte zuerst Email eingeben', 'error');
+                return;
+            }
+            showConfirm(
+                `Passwort-Reset Email an ${email} senden?`,
+                async () => {
+                    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                        redirectTo: window.location.origin + window.location.pathname
+                    });
+                    if (error) {
+                        showToast('❌ Fehler: ' + error.message, 'error');
+                    } else {
+                        showToast('✅ Reset-Email wurde gesendet!', 'success');
+                    }
+                }
+            );
+        }
+
         async function handleLogout() { 
-            await supabaseClient.auth.signOut(); 
-            location.reload(); 
+            showConfirm('Wirklich ausloggen?', async () => {
+                await supabaseClient.auth.signOut(); 
+                location.reload(); 
+            });
         }
 
         // ============================================
