@@ -1300,7 +1300,7 @@
                     
                     if (!error) { 
                         emailjs.init(EJS_PUBLIC_KEY); 
-                        emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { 
+                        await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { 
                             user_name: userProfile.display_name, 
                             store_number: userProfile.store_number, 
                             date: selectedDates.join(", "), 
