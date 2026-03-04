@@ -72,6 +72,12 @@
             background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); 
             color: white; 
         }
+        .day-cancel-pending { 
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); 
+            color: white; 
+            border: 2px solid #fed7aa !important;
+            font-weight: 900;
+        }
         
         .day-disabled { 
             background: linear-gradient(135deg, #27272a 0%, #18181b 100%) !important;
@@ -354,6 +360,17 @@
                     <textarea id="modal-reason-admin" class="w-full bg-zinc-800 text-white text-sm p-3 rounded-lg outline-none border border-zinc-700" rows="3" placeholder="Noch keine Anmerkung vorhanden..."></textarea>
                     <button id="btn-save-note" onclick="saveAdminNote()" class="hidden w-full mt-3 bg-yellow-500 text-black text-[10px] font-black py-3 rounded-lg uppercase hover:bg-yellow-400 transition-colors">Speichern</button>
                 </div>
+
+                <!-- Cancel Request Button (nur für User mit bestätigter Buchung) -->
+                <div id="cancel-request-area" class="hidden">
+                    <button id="btn-cancel-request" onclick="requestCancellation()" class="w-full bg-orange-600 hover:bg-orange-500 text-white font-black py-4 rounded-xl text-sm uppercase transition-all shadow-lg">
+                        🚫 Stornierung anfragen
+                    </button>
+                </div>
+                <div id="cancel-pending-info" class="hidden bg-orange-900/30 border border-orange-500 p-4 rounded-xl text-center">
+                    <p class="text-orange-400 font-black text-sm">⏳ Stornierung wird geprüft</p>
+                    <p class="text-orange-300/70 text-[10px] mt-1">Warte auf Bestätigung des Admins</p>
+                </div>
             </div>
         </div>
     </div>
@@ -610,6 +627,7 @@
                     <div class="legend-item"><div class="legend-box day-vacation"></div><span>Urlaub</span></div>
                     <div class="legend-item"><div class="legend-box day-sick"></div><span>Krank</span></div>
                     <div class="legend-item"><div class="legend-box day-planned-free"></div><span>Geplant ZA</span></div>
+                    <div class="legend-item"><div class="legend-box day-cancel-pending"></div><span>Storno?</span></div>
                 </div>
             </div>
 
@@ -679,6 +697,12 @@
                     <div id="admin-list" class="space-y-2"></div>
                 </div>
 
+                <!-- Cancellation Requests -->
+                <div class="bg-zinc-800 p-5 rounded-3xl border border-orange-800/50 border-2">
+                    <h3 class="text-[10px] text-orange-400 uppercase font-bold mb-4 tracking-wide">🚫 Stornierungsanfragen</h3>
+                    <div id="cancel-list" class="space-y-2"></div>
+                </div>
+
                 <!-- User Approval -->
                 <div class="bg-zinc-800 p-5 rounded-3xl border border-zinc-700">
                     <h3 class="text-[10px] text-zinc-500 uppercase font-bold mb-4 tracking-wide">Neue User freischalten</h3>
@@ -734,7 +758,7 @@
         // ============================================
         
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        let currentUser = null, userProfile = null, selectedDates = [], currentViewDate = new Date(), currentModalBookingId = null;
+        let currentUser = null, userProfile = null, selectedDates = [], currentViewDate = new Date(), currentModalBookingId = null, currentModalBooking = null;
         
         let confirmCallback = null, inputCallback = null;
         let showAllBookings = false;
@@ -1028,6 +1052,7 @@
                     else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
                     else if (b.status === 'sick') { cls = "day-sick"; label = "KRANK"; }
                     else if (b.status === 'planned_free') { cls = "day-planned-free"; label = "ZA"; }
+                    else if (b.status === 'cancel_pending') { cls = "day-cancel-pending"; label = "STORNO?"; }
                 }
                 
                 const isSelected = selectedDates.includes(dateStr) ? 'day-selected' : '';
@@ -1062,6 +1087,23 @@
             } else {
                 adminNoteField.readOnly = true;
                 saveBtn.classList.add('hidden');
+            }
+
+            // Stornierung: nur für eigene bestätigte Buchungen anzeigen
+            currentModalBooking = b;
+            const cancelArea = document.getElementById('cancel-request-area');
+            const cancelPendingInfo = document.getElementById('cancel-pending-info');
+            const isOwner = b.user_id === currentUser.id;
+
+            cancelArea.classList.add('hidden');
+            cancelPendingInfo.classList.add('hidden');
+
+            if (!isAdmin && isOwner) {
+                if (b.status === 'confirmed') {
+                    cancelArea.classList.remove('hidden');
+                } else if (b.status === 'cancel_pending') {
+                    cancelPendingInfo.classList.remove('hidden');
+                }
             }
         }
 
@@ -1309,12 +1351,23 @@
             const uL = document.getElementById('booking-list'), aL = document.getElementById('admin-list');
             uL.innerHTML = ''; 
             const pending = data.filter(x => x.status === 'pending');
+            const cancelPending = data.filter(x => x.status === 'cancel_pending');
             
             if (currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+                // Offene Anfragen
                 aL.innerHTML = pending.length ? '' : '<p class="text-[9px] text-zinc-600">Keine Anfragen</p>';
                 pending.forEach(b => {
                     aL.innerHTML += `<div class="bg-white text-black p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold"><div>${b.requested_date}<br><span class="text-zinc-500">${b.display_name}</span></div><div class="flex gap-1"><button onclick="processRequest(this, '${b.id}','confirmed','${b.user_email}','${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg">✓</button><button onclick="processRequest(this, '${b.id}','rejected','${b.user_email}','${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg">X</button></div></div>`;
                 });
+
+                // Stornierungsanfragen
+                const cL = document.getElementById('cancel-list');
+                if (cL) {
+                    cL.innerHTML = cancelPending.length ? '' : '<p class="text-[9px] text-zinc-600">Keine Stornierungsanfragen</p>';
+                    cancelPending.forEach(b => {
+                        cL.innerHTML += `<div class="bg-orange-950/60 border border-orange-700 text-white p-3 rounded-2xl flex justify-between items-center text-[8px] font-bold"><div class="text-orange-300">${b.requested_date}<br><span class="text-zinc-400">${b.display_name}</span></div><div class="flex gap-1"><button onclick="processCancelRequest(this, '${b.id}', true, '${b.user_email}', '${b.requested_date}')" class="bg-green-600 text-white px-3 py-2 rounded-lg" title="Stornierung bestätigen">✓</button><button onclick="processCancelRequest(this, '${b.id}', false, '${b.user_email}', '${b.requested_date}')" class="bg-red-600 text-white px-3 py-2 rounded-lg" title="Stornierung ablehnen">X</button></div></div>`;
+                    });
+                }
             }
             
             const userBookings = data.filter(x => x.user_id === currentUser.id).sort((a,b) => b.requested_date.localeCompare(a.requested_date));
@@ -1347,6 +1400,66 @@
         // Toggle function for collapsible bookings
         function toggleBookingsList() {
             showAllBookings = !showAllBookings;
+            fetchAndRender();
+        }
+
+        async function requestCancellation() {
+            if (!currentModalBooking) return;
+            const b = currentModalBooking;
+            showConfirm(
+                `Stornierung für ${b.requested_date} anfragen? Der Admin muss diese noch bestätigen.`,
+                async () => {
+                    const { error } = await supabaseClient.from('bookings').update({ status: 'cancel_pending' }).eq('id', b.id);
+                    if (error) {
+                        showToast('❌ Fehler: ' + error.message, 'error');
+                        return;
+                    }
+                    // Email an Admin
+                    emailjs.init(EJS_PUBLIC_KEY);
+                    emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, {
+                        user_name: userProfile.display_name,
+                        store_number: userProfile.store_number,
+                        date: b.requested_date,
+                        reason: '🚫 STORNIERUNGSANFRAGE'
+                    });
+                    showToast('✅ Stornierungsanfrage gesendet!', 'success');
+                    closeModal();
+                    fetchAndRender();
+                }
+            );
+        }
+
+        async function processCancelRequest(btn, id, approve, email, date) {
+            btn.innerText = '..';
+            if (approve) {
+                // Stornierung bestätigen → Buchung löschen → Tag wird frei
+                const { error } = await supabaseClient.from('bookings').delete().eq('id', id);
+                if (error) { showToast('❌ Fehler: ' + error.message, 'error'); return; }
+                if (email) {
+                    emailjs.init(EJS_PUBLIC_KEY);
+                    emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, {
+                        email: email,
+                        status_text: 'STORNIERUNG BESTÄTIGT',
+                        date: date,
+                        admin_note: 'Deine Stornierung wurde bestätigt. Der Tag ist wieder frei.'
+                    });
+                }
+                showToast('✅ Stornierung bestätigt – Tag ist wieder frei', 'success');
+            } else {
+                // Stornierung ablehnen → zurück zu confirmed
+                const { error } = await supabaseClient.from('bookings').update({ status: 'confirmed' }).eq('id', id);
+                if (error) { showToast('❌ Fehler: ' + error.message, 'error'); return; }
+                if (email) {
+                    emailjs.init(EJS_PUBLIC_KEY);
+                    emailjs.send(EJS_SERVICE, EJS_USER_TEMPLATE, {
+                        email: email,
+                        status_text: 'STORNIERUNG ABGELEHNT',
+                        date: date,
+                        admin_note: 'Deine Stornierungsanfrage wurde leider abgelehnt.'
+                    });
+                }
+                showToast('❌ Stornierung abgelehnt – Buchung bleibt bestehen', 'success');
+            }
             fetchAndRender();
         }
 
