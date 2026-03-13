@@ -639,7 +639,7 @@
                     <div class="flex-1">
                         <p id="user-welcome" class="text-xl font-black text-yellow-500"></p>
                         <p id="user-store" class="text-[11px] text-zinc-400 font-bold mt-1"></p>
-                        <button id="btn-switch-store" onclick="switchStore()" style="margin-top:8px; background:#eab308; color:black; font-weight:900; padding:10px 16px; border-radius:10px; font-size:12px; border:none; cursor:pointer;">🏪 Filiale wechseln</button>
+                        <button id="btn-switch-store" onclick="switchStore()" style="display:none; margin-top:8px; background:#eab308; color:black; font-weight:900; padding:10px 16px; border-radius:10px; font-size:12px; border:none; cursor:pointer;">🏪 Filiale wechseln</button>
                         <button onclick="handleLogout()" class="mt-4 text-red-400 hover:text-red-300 underline text-[10px] font-bold transition-colors">Logout</button>
                     </div>
                     <button id="install-btn" onclick="handleInstallPrompt()" class="hidden bg-yellow-500 hover:bg-yellow-400 text-black font-black px-3 py-2 rounded-xl text-[9px] uppercase transition-all shadow-lg flex items-center gap-1 flex-shrink-0">
@@ -1018,20 +1018,18 @@
             if (!userProfile) return;
             document.getElementById('user-welcome').innerText = userProfile.display_name;
 
-            const email = currentUser.email.trim().toLowerCase();
-            const btn = document.getElementById('btn-switch-store');
+            const email = (currentUser.email || '').trim().toLowerCase();
+            const isMultiStore = email.includes('sodeeepinside') || email.includes('manuel.ambrosig');
 
-            if (email === 'sodeeepinside@hotmail.com') {
+            if (email.includes('sodeeepinside')) {
                 if (!activeStoreNumber) activeStoreNumber = '653';
-                btn.style.display = 'inline-block';
-            } else if (email === 'manuel.ambrosig@hartlauer.at') {
+            } else if (email.includes('manuel.ambrosig')) {
                 if (!activeStoreNumber) activeStoreNumber = '039';
-                btn.style.display = 'inline-block';
             } else {
                 activeStoreNumber = userProfile.store_number;
-                btn.style.display = 'none';
             }
 
+            document.getElementById('btn-switch-store').style.display = isMultiStore ? 'inline-block' : 'none';
             document.getElementById('user-store').innerText = 'Filiale: ' + activeStoreNumber;
             const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
             document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
@@ -1041,10 +1039,10 @@
         }
 
         function switchStore() {
-            const email = currentUser.email.trim().toLowerCase();
-            if (email === 'sodeeepinside@hotmail.com') {
+            const email = (currentUser.email || '').trim().toLowerCase();
+            if (email.includes('sodeeepinside')) {
                 activeStoreNumber = activeStoreNumber === '653' ? '456' : '653';
-            } else if (email === 'manuel.ambrosig@hartlauer.at') {
+            } else if (email.includes('manuel.ambrosig')) {
                 activeStoreNumber = activeStoreNumber === '039' ? '167' : '039';
             } else return;
             document.getElementById('user-store').innerText = 'Filiale: ' + activeStoreNumber;
