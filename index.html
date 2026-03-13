@@ -639,9 +639,9 @@
                     <div class="flex-1">
                         <p id="user-welcome" class="text-xl font-black text-yellow-500"></p>
                         <p id="user-store" class="text-[11px] text-zinc-400 font-bold mt-1"></p>
+                        <button id="btn-switch-store" onclick="switchStore()" style="margin-top:8px; background:#eab308; color:black; font-weight:900; padding:10px 16px; border-radius:10px; font-size:12px; border:none; cursor:pointer;">🏪 Filiale wechseln</button>
                         <button onclick="handleLogout()" class="mt-4 text-red-400 hover:text-red-300 underline text-[10px] font-bold transition-colors">Logout</button>
                     </div>
-                    <button id="btn-switch-store" onclick="switchStore()" class="bg-zinc-700 text-yellow-400 font-black px-3 py-2 rounded-xl text-[9px] uppercase shadow-lg flex-shrink-0 border border-yellow-500/50">🏪 Filiale<br>wechseln</button>
                     <button id="install-btn" onclick="handleInstallPrompt()" class="hidden bg-yellow-500 hover:bg-yellow-400 text-black font-black px-3 py-2 rounded-xl text-[9px] uppercase transition-all shadow-lg flex items-center gap-1 flex-shrink-0">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m0 0l-4-4m4 4l4-4M3 20h18"></path>
@@ -1016,22 +1016,22 @@
 
         function renderUserSection() {
             if (!userProfile) return;
+            document.getElementById('user-welcome').innerText = userProfile.display_name;
 
             const email = currentUser.email.trim().toLowerCase();
             const btn = document.getElementById('btn-switch-store');
 
             if (email === 'sodeeepinside@hotmail.com') {
                 if (!activeStoreNumber) activeStoreNumber = '653';
-                btn.style.display = 'block';
+                btn.style.display = 'inline-block';
             } else if (email === 'manuel.ambrosig@hartlauer.at') {
                 if (!activeStoreNumber) activeStoreNumber = '039';
-                btn.style.display = 'block';
+                btn.style.display = 'inline-block';
             } else {
                 activeStoreNumber = userProfile.store_number;
                 btn.style.display = 'none';
             }
 
-            document.getElementById('user-welcome').innerText = userProfile.display_name;
             document.getElementById('user-store').innerText = 'Filiale: ' + activeStoreNumber;
             const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
             document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
