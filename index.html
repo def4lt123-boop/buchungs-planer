@@ -247,13 +247,22 @@
         /* === TOUCH-OPTIMIERUNG === */
         * { 
             user-select: none; 
+            -webkit-user-select: none;
             -webkit-tap-highlight-color: transparent; 
         }
         
-        input, textarea { 
+        /* iOS Fix: parent -webkit-user-select:none blockiert Texteingabe in child inputs.
+           Alle Modal-Container UND inputs/textareas muessen explizit auf text stehen. */
+        input, textarea,
+        #input-modal, #input-modal div,
+        #detail-modal, #detail-modal div,
+        #confirm-modal, #confirm-modal div { 
             user-select: text !important; 
             -webkit-user-select: text !important;
-            font-size: 16px !important; /* Verhindert Zoom auf iOS */
+        }
+        
+        input, textarea {
+            font-size: 16px !important;
         }
 
         /* === LEGEND === */
