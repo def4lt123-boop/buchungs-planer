@@ -641,7 +641,7 @@
                         <p id="user-store" class="text-[11px] text-zinc-400 font-bold mt-1"></p>
                         <button onclick="handleLogout()" class="mt-4 text-red-400 hover:text-red-300 underline text-[10px] font-bold transition-colors">Logout</button>
                     </div>
-                    <button id="btn-switch-store" onclick="switchStore()" style="display:none;" class="bg-zinc-700 text-yellow-400 font-black px-3 py-2 rounded-xl text-[9px] uppercase shadow-lg flex-shrink-0 border border-yellow-500/50">🏪 Filiale<br>wechseln</button>
+                    <button id="btn-switch-store" onclick="switchStore()" class="bg-zinc-700 text-yellow-400 font-black px-3 py-2 rounded-xl text-[9px] uppercase shadow-lg flex-shrink-0 border border-yellow-500/50">🏪 Filiale<br>wechseln</button>
                     <button id="install-btn" onclick="handleInstallPrompt()" class="hidden bg-yellow-500 hover:bg-yellow-400 text-black font-black px-3 py-2 rounded-xl text-[9px] uppercase transition-all shadow-lg flex items-center gap-1 flex-shrink-0">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m0 0l-4-4m4 4l4-4M3 20h18"></path>
@@ -1016,39 +1016,37 @@
 
         function renderUserSection() {
             if (!userProfile) return;
-            document.getElementById('user-welcome').innerText = userProfile.display_name;
 
             const email = currentUser.email.trim().toLowerCase();
-            let multiStores = null;
-            if (email === 'sodeeepinside@hotmail.com') multiStores = ['653', '456'];
-            else if (email === 'manuel.ambrosig@hartlauer.at') multiStores = ['039', '167'];
+            const btn = document.getElementById('btn-switch-store');
 
-            if (multiStores) {
-                if (!activeStoreNumber) activeStoreNumber = multiStores[0];
-                document.getElementById('btn-switch-store').style.display = 'block';
+            if (email === 'sodeeepinside@hotmail.com') {
+                if (!activeStoreNumber) activeStoreNumber = '653';
+                btn.style.display = 'block';
+            } else if (email === 'manuel.ambrosig@hartlauer.at') {
+                if (!activeStoreNumber) activeStoreNumber = '039';
+                btn.style.display = 'block';
             } else {
                 activeStoreNumber = userProfile.store_number;
+                btn.style.display = 'none';
             }
 
+            document.getElementById('user-welcome').innerText = userProfile.display_name;
             document.getElementById('user-store').innerText = 'Filiale: ' + activeStoreNumber;
             const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
             document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
-            
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-            if (!isStandalone) {
-                document.getElementById('install-btn').classList.remove('hidden');
-            }
-            
+            if (!isStandalone) document.getElementById('install-btn').classList.remove('hidden');
             fetchAndRender();
         }
 
         function switchStore() {
             const email = currentUser.email.trim().toLowerCase();
-            let multiStores = null;
-            if (email === 'sodeeepinside@hotmail.com') multiStores = ['653', '456'];
-            else if (email === 'manuel.ambrosig@hartlauer.at') multiStores = ['039', '167'];
-            if (!multiStores) return;
-            activeStoreNumber = multiStores.find(s => s !== activeStoreNumber) || multiStores[0];
+            if (email === 'sodeeepinside@hotmail.com') {
+                activeStoreNumber = activeStoreNumber === '653' ? '456' : '653';
+            } else if (email === 'manuel.ambrosig@hartlauer.at') {
+                activeStoreNumber = activeStoreNumber === '039' ? '167' : '039';
+            } else return;
             document.getElementById('user-store').innerText = 'Filiale: ' + activeStoreNumber;
             showToast('🏪 Aktive Filiale: ' + activeStoreNumber, 'success');
             clearSelection();
