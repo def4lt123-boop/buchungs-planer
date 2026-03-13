@@ -640,7 +640,7 @@
                         <p id="user-welcome" class="text-xl font-black text-yellow-500"></p>
                         <div onclick="switchStore()" style="cursor:pointer; margin-top:4px;">
                             <p id="user-store" class="text-[11px] text-zinc-400 font-bold"></p>
-                            <p id="store-switch-hint" class="text-[10px] text-yellow-500/70 font-bold">↕ Filiale wechseln</p>
+                            <p id="store-switch-hint" style="font-size:10px; color:#eab308; font-weight:700; margin-top:2px;">↕ Filiale wechseln</p>
                         </div>
                         <button onclick="handleLogout()" class="mt-4 text-red-400 hover:text-red-300 underline text-[10px] font-bold transition-colors">Logout</button>
                     </div>
@@ -1020,17 +1020,18 @@
             if (!userProfile) return;
             document.getElementById('user-welcome').innerText = userProfile.display_name;
 
-            const email = (currentUser.email || '').trim().toLowerCase();
+            const name = (userProfile.display_name || '').trim().toLowerCase();
+            const hint = document.getElementById('store-switch-hint');
 
-            if (email.includes('sodeeepinside')) {
+            if (name === 'test test') {
                 if (!activeStoreNumber) activeStoreNumber = '653';
-            } else if (email.includes('manuel.ambrosig')) {
+                hint.style.display = 'block';
+            } else if (name === 'manuel ambrosig') {
                 if (!activeStoreNumber) activeStoreNumber = '039';
+                hint.style.display = 'block';
             } else {
                 activeStoreNumber = userProfile.store_number;
-                // Hint für normale User ausblenden
-                const hint = document.getElementById('store-switch-hint');
-                if (hint) hint.style.display = 'none';
+                hint.style.display = 'none';
             }
 
             document.getElementById('user-store').innerText = 'Filiale: ' + activeStoreNumber;
@@ -1042,10 +1043,10 @@
         }
 
         function switchStore() {
-            const email = (currentUser.email || '').trim().toLowerCase();
-            if (email.includes('sodeeepinside')) {
+            const name = (userProfile.display_name || '').trim().toLowerCase();
+            if (name === 'test test') {
                 activeStoreNumber = activeStoreNumber === '653' ? '456' : '653';
-            } else if (email.includes('manuel.ambrosig')) {
+            } else if (name === 'manuel ambrosig') {
                 activeStoreNumber = activeStoreNumber === '039' ? '167' : '039';
             } else return;
             document.getElementById('user-store').innerText = 'Filiale: ' + activeStoreNumber;
