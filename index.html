@@ -400,16 +400,6 @@
         </div>
     </div>
 
-    <!-- Store Select Modal (für User mit mehreren Filialen) -->
-    <div id="store-select-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4" style="backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
-        <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700 animate-fadeIn">
-            <h3 class="text-yellow-500 font-black uppercase text-lg mb-2">Filiale auswählen</h3>
-            <p class="text-xs text-zinc-400 mb-5">Für welche Filiale möchtest du buchen?</p>
-            <div id="store-select-buttons" class="flex flex-col gap-3"></div>
-            <button onclick="closeStoreSelect()" class="w-full mt-4 bg-zinc-700 hover:bg-zinc-600 text-white py-4 rounded-xl font-bold text-sm transition-colors">Abbrechen</button>
-        </div>
-    </div>
-
     <!-- New Password Modal (after reset link click) -->
     <div id="new-password-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4" style="backdrop-filter:blur(12px)">
         <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700 animate-fadeIn">
@@ -775,6 +765,16 @@
         <button onclick="clearSelection()" class="w-full mt-3 text-black/60 hover:text-black/80 underline text-[10px] font-bold transition-colors">Auswahl löschen</button>
     </div>
 
+    <!-- Filial-Auswahl Modal -->
+    <div id="store-select-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4" style="backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
+        <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700">
+            <h3 class="text-yellow-500 font-black uppercase text-lg mb-2">Filiale auswählen</h3>
+            <p class="text-xs text-zinc-400 mb-5">Für welche Filiale möchtest du anfragen?</p>
+            <div id="store-select-btns" class="flex flex-col gap-3"></div>
+            <button onclick="document.getElementById('store-select-modal').classList.add('hidden')" class="w-full mt-4 bg-zinc-700 hover:bg-zinc-600 text-white py-4 rounded-xl font-bold text-sm transition-colors">Abbrechen</button>
+        </div>
+    </div>
+
     <script>
         // ============================================
         // KONFIGURATION - HIER DEINE DATEN EINTRAGEN
@@ -794,8 +794,8 @@
         
         // Registrierungs-Code
         const MASTER_REG_CODE = "FLO2026";
-        
-        // User mit mehreren Filial-Optionen beim Buchen
+
+        // User mit mehreren Filialen – zeigt Auswahl beim Buchen
         const MULTI_STORE_USERS = {
             'sodeeepinside@hotmail.com': ['653', '456'],
             'manuel.ambrosig@hartlauer.at': ['039', '167']
@@ -1293,54 +1293,61 @@
                 return;
             }
 
-            // Prüfen ob User mehrere Filialen hat
             const userEmail = currentUser.email.trim().toLowerCase();
             const multiStores = MULTI_STORE_USERS[userEmail];
 
             if (multiStores) {
-                // Filiale zuerst auswählen lassen
-                showStoreSelect(multiStores, (chosenStore) => {
-                    if (!chosenStore) return;
-                    submitSelectionWithStore(chosenStore);
+                // Filial-Auswahl Modal anzeigen
+                const modal = document.getElementById('store-select-modal');
+                const container = document.getElementById('store-select-btns');
+                container.innerHTML = '';
+                multiStores.forEach(function(store) {
+                    const btn = document.createElement('button');
+                    btn.textContent = 'Filiale ' + store;
+                    btn.className = 'w-full bg-zinc-700 text-white font-black py-5 rounded-xl text-lg border-2 border-zinc-600';
+                    btn.addEventListener('click', function() {
+                        modal.classList.add('hidden');
+                        doSubmit(store);
+                    });
+                    container.appendChild(btn);
                 });
+                modal.classList.remove('hidden');
             } else {
-                submitSelectionWithStore(userProfile.store_number);
+                doSubmit(userProfile.store_number);
             }
         }
 
-        async function submitSelectionWithStore(storeNumber) {
+        async function doSubmit(storeNumber) {
             showInput(
                 'Anfrage senden',
                 'Optionale Nachricht/Grund für die Anfrage:',
                 'z.B. *** ist krank',
                 async (reason) => {
-                    if (reason === null) return; // Abgebrochen
-                    
+                    if (reason === null) return;
+
                     setBtnLoading('btn-submit', true, "Sende...");
-                    
-                    const ins = selectedDates.map(d => ({ 
-                        user_id: currentUser.id, 
-                        requested_date: d, 
-                        display_name: userProfile.display_name, 
-                        store_number: storeNumber, 
-                        user_email: currentUser.email, 
-                        reason_user: reason, 
-                        status: 'pending' 
+
+                    const ins = selectedDates.map(d => ({
+                        user_id: currentUser.id,
+                        requested_date: d,
+                        display_name: userProfile.display_name,
+                        store_number: storeNumber,
+                        user_email: currentUser.email,
+                        reason_user: reason,
+                        status: 'pending'
                     }));
-                    
+
                     const { error } = await supabaseClient.from('bookings').insert(ins);
-                    
-                    if (!error) { 
-                        emailjs.init(EJS_PUBLIC_KEY); 
-                        await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { 
-                            user_name: userProfile.display_name, 
-                            store_number: storeNumber, 
-                            date: selectedDates.join(", "), 
-                            reason: reason || "-" 
-                        }); 
+
+                    if (!error) {
+                        emailjs.init(EJS_PUBLIC_KEY);
+                        await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, {
+                            user_name: userProfile.display_name,
+                            store_number: storeNumber,
+                            date: selectedDates.join(", "),
+                            reason: reason || "-"
+                        });
                         showToast('✅ Anfrage erfolgreich gesendet!', 'success');
-                        
-                        // Page Refresh nach erfolgreicher Anfrage
                         setTimeout(() => location.reload(), 800);
                     } else {
                         showToast('❌ Fehler: ' + error.message, 'error');
@@ -1624,48 +1631,6 @@
                 showToast('✅ Anfrage bestätigt', 'success');
                 fetchAndRender();
             }
-        }
-
-        // ============================================
-        // STORE SELECT (für Multi-Filial User)
-        // ============================================
-
-        let storeSelectCallback = null;
-
-        function showStoreSelect(stores, callback) {
-            storeSelectCallback = callback;
-            const btnsEl = document.getElementById('store-select-buttons');
-            btnsEl.innerHTML = '';
-            stores.forEach(store => {
-                const btn = document.createElement('button');
-                btn.className = 'w-full bg-zinc-700 text-white font-black py-5 rounded-xl text-base transition-all shadow-md border-2 border-zinc-600';
-                btn.style.cssText = 'touch-action: manipulation;';
-                btn.textContent = 'Filiale ' + store;
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    document.getElementById('store-select-modal').classList.add('hidden');
-                    if (storeSelectCallback) {
-                        const cb = storeSelectCallback;
-                        storeSelectCallback = null;
-                        cb(store);
-                    }
-                });
-                btnsEl.appendChild(btn);
-            });
-            document.getElementById('store-select-modal').classList.remove('hidden');
-        }
-
-        function pickStore(store) {
-            document.getElementById('store-select-modal').classList.add('hidden');
-            if (storeSelectCallback) storeSelectCallback(store);
-            storeSelectCallback = null;
-        }
-
-        function closeStoreSelect() {
-            document.getElementById('store-select-modal').classList.add('hidden');
-            if (storeSelectCallback) storeSelectCallback(null);
-            storeSelectCallback = null;
         }
 
         // ============================================
