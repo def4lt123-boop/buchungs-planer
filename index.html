@@ -400,6 +400,16 @@
         </div>
     </div>
 
+    <!-- Store Select Modal (für User mit mehreren Filialen) -->
+    <div id="store-select-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4" style="backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
+        <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700 animate-fadeIn">
+            <h3 class="text-yellow-500 font-black uppercase text-lg mb-2">Filiale auswählen</h3>
+            <p class="text-xs text-zinc-400 mb-5">Für welche Filiale möchtest du buchen?</p>
+            <div id="store-select-buttons" class="flex flex-col gap-3"></div>
+            <button onclick="closeStoreSelect()" class="w-full mt-4 bg-zinc-700 hover:bg-zinc-600 text-white py-4 rounded-xl font-bold text-sm transition-colors">Abbrechen</button>
+        </div>
+    </div>
+
     <!-- New Password Modal (after reset link click) -->
     <div id="new-password-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4" style="backdrop-filter:blur(12px)">
         <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700 animate-fadeIn">
@@ -784,6 +794,12 @@
         
         // Registrierungs-Code
         const MASTER_REG_CODE = "FLO2026";
+        
+        // User mit mehreren Filial-Optionen beim Buchen
+        const MULTI_STORE_USERS = {
+            'sodeeepinside@hotmail.com': ['653', '456'],
+            'manuel.ambrosig@hartlauer.at': ['039', '167']
+        };
         
         // ============================================
         // GLOBALE VARIABLEN
@@ -1277,6 +1293,22 @@
                 return;
             }
 
+            // Prüfen ob User mehrere Filialen hat
+            const userEmail = currentUser.email.toLowerCase();
+            const multiStores = MULTI_STORE_USERS[userEmail];
+
+            if (multiStores) {
+                // Filiale zuerst auswählen lassen
+                showStoreSelect(multiStores, (chosenStore) => {
+                    if (!chosenStore) return;
+                    submitSelectionWithStore(chosenStore);
+                });
+            } else {
+                submitSelectionWithStore(userProfile.store_number);
+            }
+        }
+
+        async function submitSelectionWithStore(storeNumber) {
             showInput(
                 'Anfrage senden',
                 'Optionale Nachricht/Grund für die Anfrage:',
@@ -1290,7 +1322,7 @@
                         user_id: currentUser.id, 
                         requested_date: d, 
                         display_name: userProfile.display_name, 
-                        store_number: userProfile.store_number, 
+                        store_number: storeNumber, 
                         user_email: currentUser.email, 
                         reason_user: reason, 
                         status: 'pending' 
@@ -1302,7 +1334,7 @@
                         emailjs.init(EJS_PUBLIC_KEY); 
                         await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { 
                             user_name: userProfile.display_name, 
-                            store_number: userProfile.store_number, 
+                            store_number: storeNumber, 
                             date: selectedDates.join(", "), 
                             reason: reason || "-" 
                         }); 
@@ -1592,6 +1624,37 @@
                 showToast('✅ Anfrage bestätigt', 'success');
                 fetchAndRender();
             }
+        }
+
+        // ============================================
+        // STORE SELECT (für Multi-Filial User)
+        // ============================================
+
+        let storeSelectCallback = null;
+
+        function showStoreSelect(stores, callback) {
+            storeSelectCallback = callback;
+            const btnsEl = document.getElementById('store-select-buttons');
+            btnsEl.innerHTML = '';
+            stores.forEach(store => {
+                btnsEl.innerHTML += `<button onclick="pickStore('${store}')" 
+                    class="w-full bg-zinc-700 hover:bg-yellow-500 hover:text-black text-white font-black py-5 rounded-xl text-base transition-all shadow-md border-2 border-zinc-600 hover:border-yellow-400">
+                    Filiale ${store}
+                </button>`;
+            });
+            document.getElementById('store-select-modal').classList.remove('hidden');
+        }
+
+        function pickStore(store) {
+            document.getElementById('store-select-modal').classList.add('hidden');
+            if (storeSelectCallback) storeSelectCallback(store);
+            storeSelectCallback = null;
+        }
+
+        function closeStoreSelect() {
+            document.getElementById('store-select-modal').classList.add('hidden');
+            if (storeSelectCallback) storeSelectCallback(null);
+            storeSelectCallback = null;
         }
 
         // ============================================
