@@ -639,6 +639,8 @@
                     <div class="flex-1">
                         <p id="user-welcome" class="text-xl font-black text-yellow-500"></p>
                         <p id="user-store" class="text-[11px] text-zinc-400 font-bold mt-1"></p>
+                        <!-- Filiale wechseln Button (nur für Multi-Filial User) -->
+                        <button id="btn-switch-store" onclick="switchStore()" class="hidden mt-2 bg-zinc-700 hover:bg-zinc-600 text-yellow-400 font-black px-3 py-2 rounded-lg text-[10px] uppercase transition-all border border-zinc-600">🏪 Filiale wechseln</button>
                         <button onclick="handleLogout()" class="mt-4 text-red-400 hover:text-red-300 underline text-[10px] font-bold transition-colors">Logout</button>
                     </div>
                     <button id="install-btn" onclick="handleInstallPrompt()" class="hidden bg-yellow-500 hover:bg-yellow-400 text-black font-black px-3 py-2 rounded-xl text-[9px] uppercase transition-all shadow-lg flex items-center gap-1 flex-shrink-0">
@@ -1011,89 +1013,52 @@
         // USER SECTION
         // ============================================
 
+        // Aktive Filiale für Multi-Store User (wird beim Login gesetzt)
+        let activeStoreNumber = null;
+
         function renderUserSection() {
             if (!userProfile) return;
+
+            // Multi-Store User: aktive Filiale initialisieren
+            const email = currentUser.email.trim().toLowerCase();
+            let multiStores = null;
+            if (email === 'sodeeepinside@hotmail.com') multiStores = ['653', '456'];
+            else if (email === 'manuel.ambrosig@hartlauer.at') multiStores = ['039', '167'];
+
+            if (multiStores) {
+                if (!activeStoreNumber) activeStoreNumber = multiStores[0]; // Standard: erste Filiale
+                document.getElementById('btn-switch-store').classList.remove('hidden');
+            } else {
+                activeStoreNumber = userProfile.store_number;
+            }
+
             document.getElementById('user-welcome').innerText = userProfile.display_name;
-            document.getElementById('user-store').innerText = 'Filiale: ' + userProfile.store_number;
+            document.getElementById('user-store').innerText = 'Filiale: ' + activeStoreNumber;
+
             const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
             document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
             
-            // Show install button if NOT already installed (both iOS and Android)
             const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
             if (!isStandalone) {
                 document.getElementById('install-btn').classList.remove('hidden');
-            }
-
-            // Multi-Filial User: Anfrage-Button mit Filialauswahl überschreiben
-            const email = currentUser.email.trim().toLowerCase();
-            let stores = null;
-            if (email === 'sodeeepinside@hotmail.com') stores = ['653', '456'];
-            else if (email === 'manuel.ambrosig@hartlauer.at') stores = ['039', '167'];
-
-            if (stores) {
-                const submitBtn = document.getElementById('btn-submit');
-                submitBtn.onclick = null;
-                submitBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    if (selectedDates.length === 0) {
-                        showToast('⚠️ Keine Tage ausgewählt', 'error');
-                        return;
-                    }
-                    // Buttons dynamisch erzeugen
-                    const container = document.getElementById('store-select-btns');
-                    container.innerHTML = '';
-                    stores.forEach(function(store) {
-                        const btn = document.createElement('button');
-                        btn.textContent = 'Filiale ' + store;
-                        btn.style.cssText = 'display:block;width:100%;background:#52525b;color:white;font-weight:900;padding:20px;border-radius:14px;font-size:20px;margin-bottom:10px;cursor:pointer;border:none;';
-                        btn.addEventListener('click', function() {
-                            document.getElementById('store-select-modal').classList.add('hidden');
-                            doSubmit(store);
-                        });
-                        container.appendChild(btn);
-                    });
-                    document.getElementById('store-select-modal').classList.remove('hidden');
-                });
             }
             
             fetchAndRender();
         }
 
-        async function doSubmit(storeNumber) {
-            showInput(
-                'Anfrage senden',
-                'Optionale Nachricht/Grund für die Anfrage:',
-                'z.B. *** ist krank',
-                async (reason) => {
-                    if (reason === null) return;
-                    setBtnLoading('btn-submit', true, "Sende...");
-                    const ins = selectedDates.map(d => ({
-                        user_id: currentUser.id,
-                        requested_date: d,
-                        display_name: userProfile.display_name,
-                        store_number: storeNumber,
-                        user_email: currentUser.email,
-                        reason_user: reason,
-                        status: 'pending'
-                    }));
-                    const { error } = await supabaseClient.from('bookings').insert(ins);
-                    if (!error) {
-                        emailjs.init(EJS_PUBLIC_KEY);
-                        await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, {
-                            user_name: userProfile.display_name,
-                            store_number: storeNumber,
-                            date: selectedDates.join(", "),
-                            reason: reason || "-"
-                        });
-                        showToast('✅ Anfrage erfolgreich gesendet!', 'success');
-                        setTimeout(() => location.reload(), 800);
-                    } else {
-                        showToast('❌ Fehler: ' + error.message, 'error');
-                        setBtnLoading('btn-submit', false);
-                    }
-                }
-            );
+        function switchStore() {
+            const email = currentUser.email.trim().toLowerCase();
+            let multiStores = null;
+            if (email === 'sodeeepinside@hotmail.com') multiStores = ['653', '456'];
+            else if (email === 'manuel.ambrosig@hartlauer.at') multiStores = ['039', '167'];
+            if (!multiStores) return;
+
+            // Zur anderen Filiale wechseln
+            const other = multiStores.find(s => s !== activeStoreNumber) || multiStores[0];
+            activeStoreNumber = other;
+            document.getElementById('user-store').innerText = 'Filiale: ' + activeStoreNumber;
+            showToast('✅ Aktive Filiale: ' + activeStoreNumber, 'success');
+            clearSelection();
         }
 
         async function fetchAndRender() {
@@ -1359,7 +1324,7 @@
                         user_id: currentUser.id, 
                         requested_date: d, 
                         display_name: userProfile.display_name, 
-                        store_number: userProfile.store_number, 
+                        store_number: activeStoreNumber, 
                         user_email: currentUser.email, 
                         reason_user: reason, 
                         status: 'pending' 
@@ -1371,7 +1336,7 @@
                         emailjs.init(EJS_PUBLIC_KEY); 
                         await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { 
                             user_name: userProfile.display_name, 
-                            store_number: userProfile.store_number, 
+                            store_number: activeStoreNumber, 
                             date: selectedDates.join(", "), 
                             reason: reason || "-" 
                         }); 
@@ -1759,15 +1724,6 @@
         function closeInstallModal() {
             document.getElementById('ios-install-modal').classList.add('hidden');
         }
-    </script>    <!-- Filial-Auswahl Modal -->
-    <div id="store-select-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4" style="backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
-        <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700">
-            <h3 class="text-yellow-500 font-black uppercase text-xl mb-2">Filiale auswählen</h3>
-            <p class="text-zinc-400 text-sm mb-6">Für welche Filiale möchtest du anfragen?</p>
-            <div id="store-select-btns"></div>
-            <button onclick="document.getElementById('store-select-modal').classList.add('hidden')" class="w-full mt-4 bg-zinc-700 text-white py-4 rounded-xl font-bold text-sm">Abbrechen</button>
-        </div>
-    </div>
-
+    </script>
 </body>
 </html>
