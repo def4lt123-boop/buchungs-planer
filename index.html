@@ -784,12 +784,6 @@
         
         // Registrierungs-Code
         const MASTER_REG_CODE = "FLO2026";
-
-        // User mit mehreren Filialen
-        const MULTI_STORE_USERS = {
-            'sodeeepinside@hotmail.com': ['653', '456'],
-            'manuel.ambrosig@hartlauer.at': ['039', '167']
-        };
         
         // ============================================
         // GLOBALE VARIABLEN
@@ -1283,30 +1277,23 @@
                 return;
             }
 
-            // Email normalisieren
             const userEmail = (currentUser.email || '').trim().toLowerCase();
-            console.log('submitSelection - userEmail:', userEmail);
-            console.log('MULTI_STORE_USERS keys:', Object.keys(MULTI_STORE_USERS));
 
-            // Robuster Vergleich über alle Keys
             let multiStores = null;
-            for (const key of Object.keys(MULTI_STORE_USERS)) {
-                if (key.trim().toLowerCase() === userEmail) {
-                    multiStores = MULTI_STORE_USERS[key];
-                    break;
-                }
+            if (userEmail === 'sodeeepinside@hotmail.com') {
+                multiStores = ['653', '456'];
+            } else if (userEmail === 'manuel.ambrosig@hartlauer.at') {
+                multiStores = ['039', '167'];
             }
-            console.log('multiStores found:', multiStores);
 
-            if (multiStores && multiStores.length > 0) {
-                // Filial-Auswahl anzeigen
+            if (multiStores) {
                 const modal = document.getElementById('store-select-modal');
                 const container = document.getElementById('store-select-btns');
                 container.innerHTML = '';
                 multiStores.forEach(function(store) {
                     const btn = document.createElement('button');
                     btn.textContent = 'Filiale ' + store;
-                    btn.style.cssText = 'width:100%;background:#3f3f46;color:white;font-weight:900;padding:20px;border-radius:12px;font-size:18px;border:2px solid #52525b;margin-bottom:4px;cursor:pointer;';
+                    btn.style.cssText = 'display:block;width:100%;background:#3f3f46;color:white;font-weight:900;padding:20px;border-radius:12px;font-size:18px;margin-bottom:8px;cursor:pointer;';
                     btn.addEventListener('click', function() {
                         modal.classList.add('hidden');
                         doSubmit(store);
@@ -1732,8 +1719,8 @@
         <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700">
             <h3 class="text-yellow-500 font-black uppercase text-lg mb-2">Filiale auswählen</h3>
             <p class="text-xs text-zinc-400 mb-5">Für welche Filiale möchtest du anfragen?</p>
-            <div id="store-select-btns" class="flex flex-col gap-3"></div>
-            <button onclick="document.getElementById('store-select-modal').classList.add('hidden')" class="w-full mt-4 bg-zinc-700 hover:bg-zinc-600 text-white py-4 rounded-xl font-bold text-sm">Abbrechen</button>
+            <div id="store-select-btns"></div>
+            <button onclick="document.getElementById('store-select-modal').classList.add('hidden')" class="w-full mt-4 bg-zinc-700 text-white py-4 rounded-xl font-bold text-sm">Abbrechen</button>
         </div>
     </div>
 
