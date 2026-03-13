@@ -638,8 +638,10 @@
                 <div class="flex justify-between items-start gap-4">
                     <div class="flex-1">
                         <p id="user-welcome" class="text-xl font-black text-yellow-500"></p>
-                        <p id="user-store" class="text-[11px] text-zinc-400 font-bold mt-1"></p>
-                        <button id="btn-switch-store" onclick="switchStore()" style="display:none; margin-top:8px; background:#eab308; color:black; font-weight:900; padding:10px 16px; border-radius:10px; font-size:12px; border:none; cursor:pointer;">🏪 Filiale wechseln</button>
+                        <div onclick="switchStore()" style="cursor:pointer; margin-top:4px;">
+                            <p id="user-store" class="text-[11px] text-zinc-400 font-bold"></p>
+                            <p id="store-switch-hint" class="text-[10px] text-yellow-500/70 font-bold">↕ Filiale wechseln</p>
+                        </div>
                         <button onclick="handleLogout()" class="mt-4 text-red-400 hover:text-red-300 underline text-[10px] font-bold transition-colors">Logout</button>
                     </div>
                     <button id="install-btn" onclick="handleInstallPrompt()" class="hidden bg-yellow-500 hover:bg-yellow-400 text-black font-black px-3 py-2 rounded-xl text-[9px] uppercase transition-all shadow-lg flex items-center gap-1 flex-shrink-0">
@@ -1019,7 +1021,6 @@
             document.getElementById('user-welcome').innerText = userProfile.display_name;
 
             const email = (currentUser.email || '').trim().toLowerCase();
-            const isMultiStore = email.includes('sodeeepinside') || email.includes('manuel.ambrosig');
 
             if (email.includes('sodeeepinside')) {
                 if (!activeStoreNumber) activeStoreNumber = '653';
@@ -1027,9 +1028,11 @@
                 if (!activeStoreNumber) activeStoreNumber = '039';
             } else {
                 activeStoreNumber = userProfile.store_number;
+                // Hint für normale User ausblenden
+                const hint = document.getElementById('store-switch-hint');
+                if (hint) hint.style.display = 'none';
             }
 
-            document.getElementById('btn-switch-store').style.display = isMultiStore ? 'inline-block' : 'none';
             document.getElementById('user-store').innerText = 'Filiale: ' + activeStoreNumber;
             const isAdmin = currentUser.email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
             document.getElementById('admin-panel').classList.toggle('hidden', !isAdmin);
