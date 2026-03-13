@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/96/calendar--v1.png">
     <link rel="icon" type="image/png" href="https://img.icons8.com/color/96/calendar--v1.png">
     
-    <title>Springerplan made by Flo - V4.3 Mobile</title>
+    <title>Springerplan made by Flo - V4.4 Mobile</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
@@ -71,6 +71,11 @@
         .day-planned-free { 
             background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); 
             color: white; 
+        }
+        .day-tentative { 
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); 
+            color: white;
+            border: 2px solid #86efac !important;
         }
         .day-cancel-pending { 
             background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); 
@@ -613,10 +618,11 @@
             
             <!-- Footer -->
             <div class="mt-16 text-center text-zinc-600 text-xs relative z-10">
-                <p>© 2026 Springerplan • <button onclick="document.getElementById('changelog').classList.toggle('hidden')" class="text-zinc-500 hover:text-zinc-400 transition-colors underline">V4.3</button></p>
+                <p>© 2026 Springerplan • <button onclick="document.getElementById('changelog').classList.toggle('hidden')" class="text-zinc-500 hover:text-zinc-400 transition-colors underline">V4.4</button></p>
                 <div id="changelog" class="hidden mt-3 text-left bg-zinc-900/80 border border-zinc-700 rounded-xl p-4 space-y-2">
                     <p class="text-zinc-400 font-bold text-[10px] uppercase tracking-wide mb-2">Changelog</p>
-                    <div class="flex gap-2 text-[10px]"><span class="text-yellow-500 font-black shrink-0">V4.3</span><span class="text-zinc-400">Option hinzugefügt → Filiale Wechseln bei GL mit mehreren Geschäften</span></div>
+                    <div class="flex gap-2 text-[10px]"><span class="text-yellow-500 font-black shrink-0">V4.4</span><span class="text-zinc-400">Vorläufig planen – Tage bleiben grün &amp; wählbar</span></div>
+                    <div class="flex gap-2 text-[10px]"><span class="text-zinc-500 font-black shrink-0">V4.4</span><span class="text-zinc-500">Filiale wechseln für GL mit mehreren Geschäften</span></div>
                     <div class="flex gap-2 text-[10px]"><span class="text-zinc-500 font-black shrink-0">V4.2</span><span class="text-zinc-500">Passwort zurücksetzen, Logout-Bestätigung</span></div>
                     <div class="flex gap-2 text-[10px]"><span class="text-zinc-500 font-black shrink-0">V4.1</span><span class="text-zinc-500">Man kann jetzt eigene Buchungen wieder stornieren</span></div>
                     <div class="flex gap-2 text-[10px]"><span class="text-zinc-500 font-black shrink-0">V4.0</span><span class="text-zinc-500">Release Version</span></div>
@@ -629,10 +635,11 @@
             
             <!-- User Info Header -->
             <div class="bg-zinc-800 p-6 rounded-3xl border border-zinc-700">
-                <p class="text-center text-zinc-600 text-[10px] mb-3"><button onclick="document.getElementById('changelog-main').classList.toggle('hidden')" class="hover:text-zinc-400 transition-colors underline">V4.3 · Änderungen anzeigen</button></p>
+                <p class="text-center text-zinc-600 text-[10px] mb-3"><button onclick="document.getElementById('changelog-main').classList.toggle('hidden')" class="hover:text-zinc-400 transition-colors underline">V4.4 · Änderungen anzeigen</button></p>
                 <div id="changelog-main" class="hidden mb-4 bg-zinc-900/80 border border-zinc-700 rounded-xl p-3 space-y-2">
                     <p class="text-zinc-400 font-bold text-[10px] uppercase tracking-wide mb-2">Changelog</p>
-                    <div class="flex gap-2 text-[10px]"><span class="text-yellow-500 font-black shrink-0">V4.3</span><span class="text-zinc-400">Option hinzugefügt → Filiale Wechseln bei GL mit mehreren Geschäften</span></div>
+                    <div class="flex gap-2 text-[10px]"><span class="text-yellow-500 font-black shrink-0">V4.4</span><span class="text-zinc-400">Vorläufig planen – Tage bleiben grün &amp; wählbar</span></div>
+                    <div class="flex gap-2 text-[10px]"><span class="text-zinc-500 font-black shrink-0">V4.4</span><span class="text-zinc-500">Filiale wechseln für GL mit mehreren Geschäften</span></div>
                     <div class="flex gap-2 text-[10px]"><span class="text-zinc-500 font-black shrink-0">V4.2</span><span class="text-zinc-500">Passwort zurücksetzen, Logout-Bestätigung</span></div>
                     <div class="flex gap-2 text-[10px]"><span class="text-zinc-500 font-black shrink-0">V4.1</span><span class="text-zinc-500">Man kann jetzt eigene Buchungen wieder stornieren</span></div>
                     <div class="flex gap-2 text-[10px]"><span class="text-zinc-500 font-black shrink-0">V4.0</span><span class="text-zinc-500">Release Version</span></div>
@@ -665,6 +672,7 @@
                     <div class="legend-item"><div class="legend-box day-vacation"></div><span>Urlaub</span></div>
                     <div class="legend-item"><div class="legend-box day-sick"></div><span>Krank</span></div>
                     <div class="legend-item"><div class="legend-box day-planned-free"></div><span>ZA</span></div>
+                    <div class="legend-item"><div class="legend-box day-tentative" style="border:2px solid #86efac;"></div><span>Vorläufig</span></div>
                 </div>
             </div>
 
@@ -756,15 +764,15 @@
         <!-- User Actions -->
         <button id="btn-submit" onclick="submitSelection()" class="w-full bg-black hover:bg-zinc-900 text-yellow-500 font-black py-4 rounded-xl uppercase text-sm mb-3 transition-all shadow-lg">Anfrage senden</button>
         
-        <!-- Admin Actions -->
         <div id="admin-actions" class="hidden space-y-2 pt-3 border-t-2 border-black/20">
             <div class="grid grid-cols-2 gap-2">
-                <button onclick="submitAdminAction('direkt')" class="bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Direkt buchen</button>
+                <button onclick="submitAdminAction('direkt')" class="bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Fix buchen 🔴</button>
+                <button onclick="submitAdminAction('vorläufig')" class="bg-green-600 hover:bg-green-500 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Vorläufig 🟢</button>
                 <button onclick="submitAdminAction('urlaub')" class="bg-blue-600 hover:bg-blue-500 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Urlaub</button>
                 <button onclick="submitAdminAction('krank')" class="bg-red-900 hover:bg-red-800 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Krank</button>
-                <button onclick="submitAdminAction('planned_free')" class="bg-purple-600 hover:bg-purple-500 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Geplant ZA</button>
+                <button onclick="submitAdminAction('planned_free')" class="bg-purple-600 hover:bg-purple-500 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md col-span-2">Geplant ZA</button>
             </div>
-            <button onclick="submitAdminAction('frei')" class="w-full bg-green-600 hover:bg-green-500 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Tage freigeben</button>
+            <button onclick="submitAdminAction('frei')" class="w-full bg-zinc-600 hover:bg-zinc-500 text-white font-black py-3 rounded-lg text-[10px] uppercase transition-all shadow-md">Tage freigeben</button>
         </div>
         
         <button onclick="clearSelection()" class="w-full mt-3 text-black/60 hover:text-black/80 underline text-[10px] font-bold transition-colors">Auswahl löschen</button>
@@ -1162,13 +1170,13 @@
                 
                 // Buchungs-Status (aber nur wenn nicht disabled)
                 if (b && !disabled) {
-                    isBusy = true; 
-                    if (b.status === 'confirmed') { cls = "day-busy"; label = "Fil. " + b.store_number; }
-                    else if (b.status === 'pending') { cls = "day-pending"; label = "OFFEN"; }
-                    else if (b.status === 'vacation') { cls = "day-vacation"; label = "URLAUB"; }
-                    else if (b.status === 'sick') { cls = "day-sick"; label = "KRANK"; }
-                    else if (b.status === 'planned_free') { cls = "day-planned-free"; label = "ZA"; }
-                    else if (b.status === 'cancel_pending') { cls = "day-cancel-pending"; label = "STORNO?"; }
+                    if (b.status === 'confirmed') { isBusy = true; cls = "day-busy"; label = "Fil. " + b.store_number; }
+                    else if (b.status === 'pending') { isBusy = true; cls = "day-pending"; label = "OFFEN"; }
+                    else if (b.status === 'vacation') { isBusy = true; cls = "day-vacation"; label = "URLAUB"; }
+                    else if (b.status === 'sick') { isBusy = true; cls = "day-sick"; label = "KRANK"; }
+                    else if (b.status === 'planned_free') { isBusy = true; cls = "day-planned-free"; label = "ZA"; }
+                    else if (b.status === 'cancel_pending') { isBusy = true; cls = "day-cancel-pending"; label = "STORNO?"; }
+                    else if (b.status === 'vorläufig') { isBusy = false; cls = "day-tentative"; label = "Fil. " + b.store_number; }
                 }
                 
                 const isSelected = selectedDates.includes(dateStr) ? 'day-selected' : '';
@@ -1379,29 +1387,33 @@
 
             if (type === 'direkt') {
                 showInput(
-                    'Direkt buchen',
+                    'Fix buchen',
                     'Filiale eingeben (3 Zahlen):',
                     'Fil. Nr. z.B. 039, 079, 109',
                     async (fil) => {
                         if (!fil) return;
-                        
-                        // Validierung: genau 3 Zahlen erforderlich
-                        if (fil.length !== 3) {
-                            showToast('❌ Bitte genau 3 Zahlen eingeben', 'error');
-                            return;
-                        }
-                        
-                        // Name automatisch aus Admin-Profil holen
+                        if (fil.length !== 3) { showToast('❌ Bitte genau 3 Zahlen eingeben', 'error'); return; }
                         const { data: profile } = await supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).single();
                         const adminName = profile ? profile.display_name : 'Admin';
-                        
                         const { error } = await supabaseClient.from('bookings').insert(insData('confirmed', fil, adminName));
-                        if (error) {
-                            showToast('❌ Fehler: ' + error.message, 'error');
-                        } else {
-                            showToast('✅ Direkt gebucht', 'success');
-                            clearSelection();
-                        }
+                        if (error) { showToast('❌ Fehler: ' + error.message, 'error'); } 
+                        else { showToast('✅ Fix gebucht', 'success'); clearSelection(); }
+                    },
+                    { numericOnly: true, maxLength: 3 }
+                );
+            } else if (type === 'vorläufig') {
+                showInput(
+                    'Vorläufig planen',
+                    'Filiale eingeben (3 Zahlen):',
+                    'Fil. Nr. z.B. 039, 079, 109',
+                    async (fil) => {
+                        if (!fil) return;
+                        if (fil.length !== 3) { showToast('❌ Bitte genau 3 Zahlen eingeben', 'error'); return; }
+                        const { data: profile } = await supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).single();
+                        const adminName = profile ? profile.display_name : 'Admin';
+                        const { error } = await supabaseClient.from('bookings').insert(insData('vorläufig', fil, adminName));
+                        if (error) { showToast('❌ Fehler: ' + error.message, 'error'); }
+                        else { showToast('✅ Vorläufig geplant', 'success'); clearSelection(); }
                     },
                     { numericOnly: true, maxLength: 3 }
                 );
