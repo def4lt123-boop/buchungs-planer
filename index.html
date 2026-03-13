@@ -1294,7 +1294,7 @@
             }
 
             // Prüfen ob User mehrere Filialen hat
-            const userEmail = currentUser.email.toLowerCase();
+            const userEmail = currentUser.email.trim().toLowerCase();
             const multiStores = MULTI_STORE_USERS[userEmail];
 
             if (multiStores) {
@@ -1637,10 +1637,21 @@
             const btnsEl = document.getElementById('store-select-buttons');
             btnsEl.innerHTML = '';
             stores.forEach(store => {
-                btnsEl.innerHTML += `<button onclick="pickStore('${store}')" 
-                    class="w-full bg-zinc-700 hover:bg-yellow-500 hover:text-black text-white font-black py-5 rounded-xl text-base transition-all shadow-md border-2 border-zinc-600 hover:border-yellow-400">
-                    Filiale ${store}
-                </button>`;
+                const btn = document.createElement('button');
+                btn.className = 'w-full bg-zinc-700 text-white font-black py-5 rounded-xl text-base transition-all shadow-md border-2 border-zinc-600';
+                btn.style.cssText = 'touch-action: manipulation;';
+                btn.textContent = 'Filiale ' + store;
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    document.getElementById('store-select-modal').classList.add('hidden');
+                    if (storeSelectCallback) {
+                        const cb = storeSelectCallback;
+                        storeSelectCallback = null;
+                        cb(store);
+                    }
+                });
+                btnsEl.appendChild(btn);
             });
             document.getElementById('store-select-modal').classList.remove('hidden');
         }
