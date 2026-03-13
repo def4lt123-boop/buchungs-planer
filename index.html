@@ -765,16 +765,6 @@
         <button onclick="clearSelection()" class="w-full mt-3 text-black/60 hover:text-black/80 underline text-[10px] font-bold transition-colors">Auswahl löschen</button>
     </div>
 
-    <!-- Filial-Auswahl Modal -->
-    <div id="store-select-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4" style="backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
-        <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700">
-            <h3 class="text-yellow-500 font-black uppercase text-lg mb-2">Filiale auswählen</h3>
-            <p class="text-xs text-zinc-400 mb-5">Für welche Filiale möchtest du anfragen?</p>
-            <div id="store-select-btns" class="flex flex-col gap-3"></div>
-            <button onclick="document.getElementById('store-select-modal').classList.add('hidden')" class="w-full mt-4 bg-zinc-700 hover:bg-zinc-600 text-white py-4 rounded-xl font-bold text-sm transition-colors">Abbrechen</button>
-        </div>
-    </div>
-
     <script>
         // ============================================
         // KONFIGURATION - HIER DEINE DATEN EINTRAGEN
@@ -795,7 +785,7 @@
         // Registrierungs-Code
         const MASTER_REG_CODE = "FLO2026";
 
-        // User mit mehreren Filialen – zeigt Auswahl beim Buchen
+        // User mit mehreren Filialen
         const MULTI_STORE_USERS = {
             'sodeeepinside@hotmail.com': ['653', '456'],
             'manuel.ambrosig@hartlauer.at': ['039', '167']
@@ -1293,18 +1283,30 @@
                 return;
             }
 
-            const userEmail = currentUser.email.trim().toLowerCase();
-            const multiStores = MULTI_STORE_USERS[userEmail];
+            // Email normalisieren
+            const userEmail = (currentUser.email || '').trim().toLowerCase();
+            console.log('submitSelection - userEmail:', userEmail);
+            console.log('MULTI_STORE_USERS keys:', Object.keys(MULTI_STORE_USERS));
 
-            if (multiStores) {
-                // Filial-Auswahl Modal anzeigen
+            // Robuster Vergleich über alle Keys
+            let multiStores = null;
+            for (const key of Object.keys(MULTI_STORE_USERS)) {
+                if (key.trim().toLowerCase() === userEmail) {
+                    multiStores = MULTI_STORE_USERS[key];
+                    break;
+                }
+            }
+            console.log('multiStores found:', multiStores);
+
+            if (multiStores && multiStores.length > 0) {
+                // Filial-Auswahl anzeigen
                 const modal = document.getElementById('store-select-modal');
                 const container = document.getElementById('store-select-btns');
                 container.innerHTML = '';
                 multiStores.forEach(function(store) {
                     const btn = document.createElement('button');
                     btn.textContent = 'Filiale ' + store;
-                    btn.className = 'w-full bg-zinc-700 text-white font-black py-5 rounded-xl text-lg border-2 border-zinc-600';
+                    btn.style.cssText = 'width:100%;background:#3f3f46;color:white;font-weight:900;padding:20px;border-radius:12px;font-size:18px;border:2px solid #52525b;margin-bottom:4px;cursor:pointer;';
                     btn.addEventListener('click', function() {
                         modal.classList.add('hidden');
                         doSubmit(store);
@@ -1324,9 +1326,7 @@
                 'z.B. *** ist krank',
                 async (reason) => {
                     if (reason === null) return;
-
                     setBtnLoading('btn-submit', true, "Sende...");
-
                     const ins = selectedDates.map(d => ({
                         user_id: currentUser.id,
                         requested_date: d,
@@ -1336,9 +1336,7 @@
                         reason_user: reason,
                         status: 'pending'
                     }));
-
                     const { error } = await supabaseClient.from('bookings').insert(ins);
-
                     if (!error) {
                         emailjs.init(EJS_PUBLIC_KEY);
                         await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, {
@@ -1729,6 +1727,15 @@
         function closeInstallModal() {
             document.getElementById('ios-install-modal').classList.add('hidden');
         }
-    </script>
+    </script>    <!-- Filial-Auswahl Modal -->
+    <div id="store-select-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4" style="backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
+        <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700">
+            <h3 class="text-yellow-500 font-black uppercase text-lg mb-2">Filiale auswählen</h3>
+            <p class="text-xs text-zinc-400 mb-5">Für welche Filiale möchtest du anfragen?</p>
+            <div id="store-select-btns" class="flex flex-col gap-3"></div>
+            <button onclick="document.getElementById('store-select-modal').classList.add('hidden')" class="w-full mt-4 bg-zinc-700 hover:bg-zinc-600 text-white py-4 rounded-xl font-bold text-sm">Abbrechen</button>
+        </div>
+    </div>
+
 </body>
 </html>
