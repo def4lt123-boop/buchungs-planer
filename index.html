@@ -251,7 +251,8 @@
         }
         
         input, textarea { 
-            user-select: auto !important; 
+            user-select: text !important; 
+            -webkit-user-select: text !important;
             font-size: 16px !important; /* Verhindert Zoom auf iOS */
         }
 
@@ -1107,6 +1108,7 @@
             
             document.getElementById('input-modal').classList.remove('hidden');
             inputCallback = callback;
+            setTimeout(() => inputField.focus(), 120);
         }
 
         function cancelInput() {
