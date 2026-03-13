@@ -1023,8 +1023,77 @@
             if (!isStandalone) {
                 document.getElementById('install-btn').classList.remove('hidden');
             }
+
+            // Multi-Filial User: Anfrage-Button mit Filialauswahl überschreiben
+            const email = currentUser.email.trim().toLowerCase();
+            let stores = null;
+            if (email === 'sodeeepinside@hotmail.com') stores = ['653', '456'];
+            else if (email === 'manuel.ambrosig@hartlauer.at') stores = ['039', '167'];
+
+            if (stores) {
+                const submitBtn = document.getElementById('btn-submit');
+                submitBtn.onclick = null;
+                submitBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (selectedDates.length === 0) {
+                        showToast('⚠️ Keine Tage ausgewählt', 'error');
+                        return;
+                    }
+                    // Buttons dynamisch erzeugen
+                    const container = document.getElementById('store-select-btns');
+                    container.innerHTML = '';
+                    stores.forEach(function(store) {
+                        const btn = document.createElement('button');
+                        btn.textContent = 'Filiale ' + store;
+                        btn.style.cssText = 'display:block;width:100%;background:#52525b;color:white;font-weight:900;padding:20px;border-radius:14px;font-size:20px;margin-bottom:10px;cursor:pointer;border:none;';
+                        btn.addEventListener('click', function() {
+                            document.getElementById('store-select-modal').classList.add('hidden');
+                            doSubmit(store);
+                        });
+                        container.appendChild(btn);
+                    });
+                    document.getElementById('store-select-modal').classList.remove('hidden');
+                });
+            }
             
             fetchAndRender();
+        }
+
+        async function doSubmit(storeNumber) {
+            showInput(
+                'Anfrage senden',
+                'Optionale Nachricht/Grund für die Anfrage:',
+                'z.B. *** ist krank',
+                async (reason) => {
+                    if (reason === null) return;
+                    setBtnLoading('btn-submit', true, "Sende...");
+                    const ins = selectedDates.map(d => ({
+                        user_id: currentUser.id,
+                        requested_date: d,
+                        display_name: userProfile.display_name,
+                        store_number: storeNumber,
+                        user_email: currentUser.email,
+                        reason_user: reason,
+                        status: 'pending'
+                    }));
+                    const { error } = await supabaseClient.from('bookings').insert(ins);
+                    if (!error) {
+                        emailjs.init(EJS_PUBLIC_KEY);
+                        await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, {
+                            user_name: userProfile.display_name,
+                            store_number: storeNumber,
+                            date: selectedDates.join(", "),
+                            reason: reason || "-"
+                        });
+                        showToast('✅ Anfrage erfolgreich gesendet!', 'success');
+                        setTimeout(() => location.reload(), 800);
+                    } else {
+                        showToast('❌ Fehler: ' + error.message, 'error');
+                        setBtnLoading('btn-submit', false);
+                    }
+                }
+            );
         }
 
         async function fetchAndRender() {
@@ -1277,62 +1346,38 @@
                 return;
             }
 
-            const userEmail = (currentUser.email || '').trim().toLowerCase();
-
-            let multiStores = null;
-            if (userEmail === 'sodeeepinside@hotmail.com') {
-                multiStores = ['653', '456'];
-            } else if (userEmail === 'manuel.ambrosig@hartlauer.at') {
-                multiStores = ['039', '167'];
-            }
-
-            if (multiStores) {
-                const modal = document.getElementById('store-select-modal');
-                const container = document.getElementById('store-select-btns');
-                container.innerHTML = '';
-                multiStores.forEach(function(store) {
-                    const btn = document.createElement('button');
-                    btn.textContent = 'Filiale ' + store;
-                    btn.style.cssText = 'display:block;width:100%;background:#3f3f46;color:white;font-weight:900;padding:20px;border-radius:12px;font-size:18px;margin-bottom:8px;cursor:pointer;';
-                    btn.addEventListener('click', function() {
-                        modal.classList.add('hidden');
-                        doSubmit(store);
-                    });
-                    container.appendChild(btn);
-                });
-                modal.classList.remove('hidden');
-            } else {
-                doSubmit(userProfile.store_number);
-            }
-        }
-
-        async function doSubmit(storeNumber) {
             showInput(
                 'Anfrage senden',
                 'Optionale Nachricht/Grund für die Anfrage:',
                 'z.B. *** ist krank',
                 async (reason) => {
-                    if (reason === null) return;
+                    if (reason === null) return; // Abgebrochen
+                    
                     setBtnLoading('btn-submit', true, "Sende...");
-                    const ins = selectedDates.map(d => ({
-                        user_id: currentUser.id,
-                        requested_date: d,
-                        display_name: userProfile.display_name,
-                        store_number: storeNumber,
-                        user_email: currentUser.email,
-                        reason_user: reason,
-                        status: 'pending'
+                    
+                    const ins = selectedDates.map(d => ({ 
+                        user_id: currentUser.id, 
+                        requested_date: d, 
+                        display_name: userProfile.display_name, 
+                        store_number: userProfile.store_number, 
+                        user_email: currentUser.email, 
+                        reason_user: reason, 
+                        status: 'pending' 
                     }));
+                    
                     const { error } = await supabaseClient.from('bookings').insert(ins);
-                    if (!error) {
-                        emailjs.init(EJS_PUBLIC_KEY);
-                        await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, {
-                            user_name: userProfile.display_name,
-                            store_number: storeNumber,
-                            date: selectedDates.join(", "),
-                            reason: reason || "-"
-                        });
+                    
+                    if (!error) { 
+                        emailjs.init(EJS_PUBLIC_KEY); 
+                        await emailjs.send(EJS_SERVICE, EJS_ADMIN_TEMPLATE, { 
+                            user_name: userProfile.display_name, 
+                            store_number: userProfile.store_number, 
+                            date: selectedDates.join(", "), 
+                            reason: reason || "-" 
+                        }); 
                         showToast('✅ Anfrage erfolgreich gesendet!', 'success');
+                        
+                        // Page Refresh nach erfolgreicher Anfrage
                         setTimeout(() => location.reload(), 800);
                     } else {
                         showToast('❌ Fehler: ' + error.message, 'error');
@@ -1717,8 +1762,8 @@
     </script>    <!-- Filial-Auswahl Modal -->
     <div id="store-select-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4" style="backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
         <div class="bg-zinc-800 w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border border-zinc-700">
-            <h3 class="text-yellow-500 font-black uppercase text-lg mb-2">Filiale auswählen</h3>
-            <p class="text-xs text-zinc-400 mb-5">Für welche Filiale möchtest du anfragen?</p>
+            <h3 class="text-yellow-500 font-black uppercase text-xl mb-2">Filiale auswählen</h3>
+            <p class="text-zinc-400 text-sm mb-6">Für welche Filiale möchtest du anfragen?</p>
             <div id="store-select-btns"></div>
             <button onclick="document.getElementById('store-select-modal').classList.add('hidden')" class="w-full mt-4 bg-zinc-700 text-white py-4 rounded-xl font-bold text-sm">Abbrechen</button>
         </div>
