@@ -639,10 +639,10 @@
                     <div class="flex-1">
                         <p id="user-welcome" class="text-xl font-black text-yellow-500"></p>
                         <p id="user-store" class="text-[11px] text-zinc-400 font-bold mt-1"></p>
-                        <!-- Filiale wechseln Button (nur für Multi-Filial User) -->
-                        <button id="btn-switch-store" onclick="switchStore()" class="hidden mt-2 bg-zinc-700 hover:bg-zinc-600 text-yellow-400 font-black px-3 py-2 rounded-lg text-[10px] uppercase transition-all border border-zinc-600">🏪 Filiale wechseln</button>
                         <button onclick="handleLogout()" class="mt-4 text-red-400 hover:text-red-300 underline text-[10px] font-bold transition-colors">Logout</button>
                     </div>
+                    <!-- Filiale wechseln Button (nur für Multi-Filial User) -->
+                    <button id="btn-switch-store" onclick="switchStore()" class="hidden bg-zinc-700 hover:bg-zinc-600 text-yellow-400 font-black px-3 py-2 rounded-xl text-[9px] uppercase transition-all shadow-lg flex-shrink-0 border border-yellow-500/40">🏪 Filiale<br>wechseln</button>
                     <button id="install-btn" onclick="handleInstallPrompt()" class="hidden bg-yellow-500 hover:bg-yellow-400 text-black font-black px-3 py-2 rounded-xl text-[9px] uppercase transition-all shadow-lg flex items-center gap-1 flex-shrink-0">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m0 0l-4-4m4 4l4-4M3 20h18"></path>
