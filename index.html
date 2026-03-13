@@ -251,19 +251,15 @@
             -webkit-tap-highlight-color: transparent; 
         }
         
-        /* iOS Fix: parent -webkit-user-select:none blockiert Texteingabe in child inputs.
-           Alle Modal-Container UND inputs/textareas muessen explizit auf text stehen. */
-        input, textarea,
-        #input-modal, #input-modal div,
-        #detail-modal, #detail-modal div,
-        #confirm-modal, #confirm-modal div { 
-            user-select: text !important; 
+        /* iOS: font-size 16px verhindert Auto-Zoom */
+        input, textarea { font-size: 16px !important; }
+        
+        /* iOS Fix via JS: html.ios-input-active wird beim focus gesetzt */
+        html.ios-input-active, html.ios-input-active * {
+            user-select: text !important;
             -webkit-user-select: text !important;
         }
         
-        input, textarea {
-            font-size: 16px !important;
-        }
 
         /* === LEGEND === */
         .legend-item { 
@@ -1119,6 +1115,18 @@
             inputCallback = callback;
             setTimeout(() => inputField.focus(), 120);
         }
+
+        // iOS Fix: beim Focus auf ein Inputfeld -webkit-user-select auf <html> aktivieren
+        document.addEventListener('focusin', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                document.documentElement.classList.add('ios-input-active');
+            }
+        });
+        document.addEventListener('focusout', function(e) {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                document.documentElement.classList.remove('ios-input-active');
+            }
+        });
 
         function cancelInput() {
             document.getElementById('input-modal').classList.add('hidden');
