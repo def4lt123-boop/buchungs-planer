@@ -245,21 +245,17 @@
         }
         
         /* === TOUCH-OPTIMIERUNG === */
-        * { 
-            user-select: none; 
+        /* WICHTIG: -webkit-user-select:none NICHT auf * - iOS blockiert damit Texteingabe */
+        * { user-select: none; -webkit-tap-highlight-color: transparent; }
+        button, .calendar-day, .legend-box, h1, h2, h3, h4, p, label, span {
             -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent; 
         }
-        
-        /* iOS: font-size 16px verhindert Auto-Zoom */
-        input, textarea { font-size: 16px !important; }
-        
-        /* iOS Fix via JS: html.ios-input-active wird beim focus gesetzt */
-        html.ios-input-active, html.ios-input-active * {
+        input, textarea {
             user-select: text !important;
             -webkit-user-select: text !important;
+            font-size: 16px !important;
         }
-        
+
 
         /* === LEGEND === */
         .legend-item { 
@@ -1115,19 +1111,6 @@
             inputCallback = callback;
             setTimeout(() => inputField.focus(), 120);
         }
-
-        // iOS Fix: beim Focus auf ein Inputfeld -webkit-user-select auf <html> aktivieren
-        document.addEventListener('focusin', function(e) {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                document.documentElement.classList.add('ios-input-active');
-            }
-        });
-        document.addEventListener('focusout', function(e) {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                document.documentElement.classList.remove('ios-input-active');
-            }
-        });
-
         function cancelInput() {
             document.getElementById('input-modal').classList.add('hidden');
             if (inputCallback) inputCallback(null);
@@ -1861,3 +1844,4 @@
     </script>
 </body>
 </html>
+
